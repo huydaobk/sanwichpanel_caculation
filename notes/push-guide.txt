@@ -1,0 +1,22 @@
+HƯỚNG DẪN PUSH LÊN MAIN (KÍCH HOẠT AUTO UPDATE)
+
+1) Mở terminal tại thư mục dự án:
+   C:\Users\Administrator\greenpan-app
+
+2) Kiểm tra đang ở nhánh main:
+   git status -sb
+   (Dòng đầu phải là: ## main)
+
+3) Nếu chưa ở main thì chuyển nhánh:
+   git switch main
+
+4) Stage và commit thay đổi (dùng Conventional Commits):
+   git add .
+   git commit -m "feat: mô tả ngắn"   (hoặc fix: ...)
+
+5) Push lên GitHub:
+   git push origin main
+
+Lưu ý:
+- Chỉ commit kiểu feat:/fix:/feat!: mới tạo release tự động.
+- Sau khi push, GitHub Actions sẽ build installer và upload release assets.
