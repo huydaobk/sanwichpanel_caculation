@@ -2,9 +2,10 @@ const { app, BrowserWindow } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 
+let mainWindow;
 
 function createWindow() {
-  const win = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
     title: "Greenpan Design",
@@ -18,7 +19,15 @@ function createWindow() {
   });
 
   // Load file index.html từ thư mục dist (sau khi build xong)
-  win.loadFile(path.join(__dirname, 'dist', 'index.html'));
+  mainWindow.loadFile(path.join(__dirname, 'dist', 'index.html'));
+}
+
+function sendUpdateStatus(event, payload = {}) {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return;
+  }
+
+  mainWindow.webContents.send('auto-update', { event, ...payload });
 }
 
 function initAutoUpdater() {
@@ -34,8 +43,29 @@ function initAutoUpdater() {
 
   autoUpdater.autoDownload = true;
 
-  autoUpdater.on('update-downloaded', () => {
-    autoUpdater.quitAndInstall();
+  autoUpdater.on('checking-for-update', () => {
+    sendUpdateStatus('checking');
+  });
+
+  autoUpdater.on('update-available', (info) => {
+    sendUpdateStatus('available', { version: info?.version });
+  });
+
+  autoUpdater.on('update-not-available', () => {
+    sendUpdateStatus('not-available');
+  });
+
+  autoUpdater.on('download-progress', (progress) => {
+    sendUpdateStatus('download-progress', { percent: progress?.percent });
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    sendUpdateStatus('downloaded', { version: info?.version });
+    setTimeout(() => autoUpdater.quitAndInstall(), 1200);
+  });
+
+  autoUpdater.on('error', (err) => {
+    sendUpdateStatus('error', { message: err?.message || String(err) });
   });
 
   autoUpdater.checkForUpdates();
@@ -58,3 +88,4 @@ app.on('window-all-closed', () => {
     app.quit();
   }
 });
+

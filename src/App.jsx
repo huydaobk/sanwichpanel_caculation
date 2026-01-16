@@ -527,6 +527,25 @@ export default function GreenpanDesign_Final() {
 
   const [activeTab, setActiveTab] = useState('input');
   const [printMode, setPrintMode] = useState(false);
+  const [updateStatus, setUpdateStatus] = useState(null);
+
+  React.useEffect(() => {
+    const ipcRenderer = window?.require?.('electron')?.ipcRenderer;
+    if (!ipcRenderer) return;
+
+    const handler = (_event, payload) => {
+      setUpdateStatus({
+        event: payload?.event,
+        version: payload?.version,
+        percent: payload?.percent,
+        message: payload?.message,
+        ts: Date.now(),
+      });
+    };
+
+    ipcRenderer.on('auto-update', handler);
+    return () => ipcRenderer.removeListener('auto-update', handler);
+  }, []);
 
   // --- CONSTANTS ---
   const CONSTANTS = {
@@ -1571,10 +1590,22 @@ export default function GreenpanDesign_Final() {
           <img src="./logo_app.jpg" alt="Greenpan Design" className="h-10 w-10 object-contain" />
           <div><h1 className="text-xl font-bold leading-none">Greenpan Design (Wall)</h1></div>
         </div>
-        <div className="flex gap-2">
-          <button className={`px-4 py-1 rounded text-sm ${activeTab === 'input' ? 'bg-blue-600' : 'bg-slate-700'}`} onClick={() => setActiveTab('input')}>Nhập Liệu</button>
-          <button className={`px-4 py-1 rounded text-sm ${activeTab === 'charts' ? 'bg-blue-600' : 'bg-slate-700'}`} onClick={() => setActiveTab('charts')}>Biểu Đồ</button>
-          <button className={`px-4 py-1 rounded text-sm ${activeTab === 'report' ? 'bg-blue-600' : 'bg-slate-700'}`} onClick={() => setActiveTab('report')}>Báo cáo</button>
+        <div className="flex items-center gap-3">
+          {updateStatus?.event && (
+            <div className="text-[11px] bg-slate-700/70 px-3 py-1 rounded-full whitespace-nowrap">
+              {updateStatus.event === 'checking' && 'Đang kiểm tra cập nhật...'}
+              {updateStatus.event === 'available' && `Có bản mới ${updateStatus.version || ''}`}
+              {updateStatus.event === 'not-available' && 'Không có cập nhật'}
+              {updateStatus.event === 'download-progress' && `Đang tải ${Math.round(updateStatus.percent || 0)}%`}
+              {updateStatus.event === 'downloaded' && `Đã tải xong ${updateStatus.version || ''}. Chuẩn bị cài...`}
+              {updateStatus.event === 'error' && `Lỗi cập nhật: ${updateStatus.message || ''}`}
+            </div>
+          )}
+          <div className="flex gap-2">
+            <button className={`px-4 py-1 rounded text-sm ${activeTab === 'input' ? 'bg-blue-600' : 'bg-slate-700'}`} onClick={() => setActiveTab('input')}>Nhập Liệu</button>
+            <button className={`px-4 py-1 rounded text-sm ${activeTab === 'charts' ? 'bg-blue-600' : 'bg-slate-700'}`} onClick={() => setActiveTab('charts')}>Biểu Đồ</button>
+            <button className={`px-4 py-1 rounded text-sm ${activeTab === 'report' ? 'bg-blue-600' : 'bg-slate-700'}`} onClick={() => setActiveTab('report')}>Báo cáo</button>
+          </div>
         </div>
       </header>
 
