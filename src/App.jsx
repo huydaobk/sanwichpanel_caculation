@@ -2077,12 +2077,12 @@ export default function GreenpanDesign_Final() {
                   <YAxis unit="kN" />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
-                  <Bar dataKey="R_Ed" name="Phản lực" barSize={30}>
+                  <Bar dataKey="R_Ed" name="Phản lực" barSize={30} isAnimationActive={!printMode}>
                     {results.reactionData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.status === 'fail' ? '#ef4444' : '#3b82f6'} />
                     ))}
                   </Bar>
-                  <Bar dataKey="F_Rd" name="Giới hạn" fill="#e5e7eb" />
+                  <Bar dataKey="F_Rd" name="Giới hạn" fill="#e5e7eb" isAnimationActive={!printMode} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -2690,7 +2690,7 @@ export default function GreenpanDesign_Final() {
                         wrapperStyle={{ fontSize: 10 }}
                       />
 
-                      <Bar dataKey="R_Ed" name="Phản lực" barSize={30}>
+                      <Bar dataKey="R_Ed" name="Phản lực" barSize={30} isAnimationActive={!printMode}>
                         {results.reactionData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.status === 'fail' ? '#ef4444' : '#3b82f6'} />
                         ))}
@@ -2703,6 +2703,7 @@ export default function GreenpanDesign_Final() {
                         stroke="#9ca3af"
                         strokeDasharray="3 3"
                         barSize={30}
+                        isAnimationActive={!printMode}
                       />
                     </BarChart>
                   </ResponsiveContainer>
