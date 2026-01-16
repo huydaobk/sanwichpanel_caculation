@@ -25,7 +25,6 @@
     "@semantic-release/exec": "^6.0.3",
     "@semantic-release/github": "^10.0.7",
     "@semantic-release/release-notes-generator": "^12.1.0",
-    "conventional-changelog-conventionalcommits": "^8.0.0",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
@@ -82,7 +81,7 @@
       [
         "@semantic-release/release-notes-generator",
         {
-          "preset": "conventionalcommits"
+          "preset": "angular"
         }
       ],
       [
