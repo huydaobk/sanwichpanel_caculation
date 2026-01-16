@@ -1576,6 +1576,31 @@ export default function GreenpanDesign_Final() {
     return null;
   };
 
+  const REACTION_PASS_COLOR = '#22c55e';
+  const REACTION_FAIL_COLOR = '#ef4444';
+  const REACTION_LIMIT_COLOR = '#e5e7eb';
+  const REACTION_LIMIT_BORDER = '#9ca3af';
+
+  const ReactionLegend = () => (
+    <div className="flex flex-wrap items-center justify-center gap-4 text-[11px]">
+      <span className="flex items-center gap-2">
+        <span className="h-3 w-3 rounded-sm" style={{ backgroundColor: REACTION_PASS_COLOR }} />
+        Phản lực đạt
+      </span>
+      <span className="flex items-center gap-2">
+        <span className="h-3 w-3 rounded-sm" style={{ backgroundColor: REACTION_FAIL_COLOR }} />
+        Phản lực không đạt
+      </span>
+      <span className="flex items-center gap-2">
+        <span
+          className="h-3 w-3 rounded-sm border"
+          style={{ backgroundColor: REACTION_LIMIT_COLOR, borderColor: REACTION_LIMIT_BORDER }}
+        />
+        Giới hạn
+      </span>
+    </div>
+  );
+
   const ReportHeader = () => (
     <div className="border-b-2 border-slate-800 pb-4 mb-6">
       <div className="flex justify-between items-end">
@@ -2115,6 +2140,9 @@ export default function GreenpanDesign_Final() {
 
           <div className="bg-white p-4 rounded shadow border border-gray-200">
             <h3 className="font-bold text-center mb-2">Phản Lực Gối</h3>
+            <div className="mb-3">
+              <ReactionLegend />
+            </div>
             <div className="h-64">
               <ResponsiveContainer>
                 <BarChart data={results.reactionData}>
@@ -2122,13 +2150,23 @@ export default function GreenpanDesign_Final() {
                   <XAxis dataKey="name" />
                   <YAxis unit="kN" />
                   <Tooltip content={<CustomTooltip />} />
-                  <Legend />
                   <Bar dataKey="R_Ed" name="Phản lực" barSize={30} isAnimationActive={!printMode}>
                     {results.reactionData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.status === 'fail' ? '#ef4444' : '#3b82f6'} />
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={entry.status === 'fail' ? REACTION_FAIL_COLOR : REACTION_PASS_COLOR}
+                      />
                     ))}
                   </Bar>
-                  <Bar dataKey="F_Rd" name="Giới hạn" fill="#e5e7eb" isAnimationActive={!printMode} />
+                  <Bar
+                    dataKey="F_Rd"
+                    name="Giới hạn"
+                    fill={REACTION_LIMIT_COLOR}
+                    stroke={REACTION_LIMIT_BORDER}
+                    strokeDasharray="3 3"
+                    barSize={30}
+                    isAnimationActive={!printMode}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -2718,6 +2756,9 @@ export default function GreenpanDesign_Final() {
                 {/* REPORT: REACTION CHART */}
                 <div className="h-48 report-chart border border-gray-100 rounded p-2 avoid-break">
                   <h4 className="text-xs font-bold text-center mb-1">Phản Lực Gối (Reaction) [kN]</h4>
+                  <div className="mb-2">
+                    <ReactionLegend />
+                  </div>
                   <ResponsiveContainer width={printMode ? 700 : '100%'} height="100%">
                     <BarChart
                       data={results.reactionData}
@@ -2728,25 +2769,21 @@ export default function GreenpanDesign_Final() {
                       <YAxis width={60} unit="kN" tick={{ fontSize: 10 }} tickMargin={6} />
 
                       <Tooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3' }} />
-                      <Legend
-                        className="report-legend"
-                        verticalAlign="top"
-                        height={22}
-                        iconSize={10}
-                        wrapperStyle={{ fontSize: 10 }}
-                      />
 
                       <Bar dataKey="R_Ed" name="Phản lực" barSize={30} isAnimationActive={!printMode}>
                         {results.reactionData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.status === 'fail' ? '#ef4444' : '#3b82f6'} />
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={entry.status === 'fail' ? REACTION_FAIL_COLOR : REACTION_PASS_COLOR}
+                          />
                         ))}
                       </Bar>
 
                       <Bar
                         dataKey="F_Rd"
                         name="Giới hạn"
-                        fill="#e5e7eb"
-                        stroke="#9ca3af"
+                        fill={REACTION_LIMIT_COLOR}
+                        stroke={REACTION_LIMIT_BORDER}
                         strokeDasharray="3 3"
                         barSize={30}
                         isAnimationActive={!printMode}
