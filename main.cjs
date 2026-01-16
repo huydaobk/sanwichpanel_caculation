@@ -1,4 +1,5 @@
 const { app, BrowserWindow } = require('electron');
+const pkg = require('./package.json');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 
@@ -20,6 +21,7 @@ function createWindow() {
 
   // Load file index.html từ thư mục dist (sau khi build xong)
   mainWindow.loadFile(path.join(__dirname, 'dist', 'index.html'));
+  sendUpdateStatus('version', { appVersion: app.getVersion() });
 }
 
 function sendUpdateStatus(event, payload = {}) {
@@ -27,7 +29,7 @@ function sendUpdateStatus(event, payload = {}) {
     return;
   }
 
-  mainWindow.webContents.send('auto-update', { event, ...payload });
+  mainWindow.webContents.send('auto-update', { event, ...payload, appVersion: app.getVersion() });
 }
 
 function initAutoUpdater() {

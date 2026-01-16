@@ -539,6 +539,7 @@ export default function GreenpanDesign_Final() {
         version: payload?.version,
         percent: payload?.percent,
         message: payload?.message,
+        appVersion: payload?.appVersion,
         ts: Date.now(),
       });
     };
@@ -1591,8 +1592,9 @@ export default function GreenpanDesign_Final() {
           <div><h1 className="text-xl font-bold leading-none">Greenpan Design (Wall)</h1></div>
         </div>
         <div className="flex items-center gap-3">
-          {updateStatus?.event && (
+          {(updateStatus?.event || updateStatus?.appVersion) && (
             <div className="text-[11px] bg-slate-700/70 px-3 py-1 rounded-full whitespace-nowrap">
+              {updateStatus?.appVersion && <span className="mr-2">v{updateStatus.appVersion}</span>}
               {updateStatus.event === 'checking' && 'Đang kiểm tra cập nhật...'}
               {updateStatus.event === 'available' && `Có bản mới ${updateStatus.version || ''}`}
               {updateStatus.event === 'not-available' && 'Không có cập nhật'}
