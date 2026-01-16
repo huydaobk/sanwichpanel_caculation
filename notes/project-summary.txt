@@ -1,0 +1,34 @@
+TÓM TẮT DỰ ÁN GREENPAN DESIGN
+
+1) TỔNG QUAN
+- Electron + React (Vite), app tính kết cấu tấm sandwich panel.
+- Main: main.cjs. UI: src/App.jsx.
+- Đóng gói bằng electron-builder, output ở release/.
+
+2) LOGIC CHÍNH
+- Input: loại panel, nhịp/gối, vật liệu, tải gió/nhiệt, tải tĩnh/hoạt, tải tập trung.
+- Tính nội lực, chuyển vị, phản lực, kiểm tra uốn/cắt/nén gối/uplift/độ võng.
+- Xuất báo cáo PDF trong tab Báo cáo.
+
+3) AUTO-UPDATE & VERSION
+- electron-updater (GitHub). checkForUpdates khi app ready.
+- IPC channel 'auto-update' + 'app-version' để hiển thị version ở header.
+
+4) QUY TRÌNH RELEASE
+- `npm run release` chạy semantic-release.
+- Workflow: .github/workflows/release.yml (trigger push main).
+- Asset chuẩn: latest.yml + Greenpan-Design-Setup-${version}.exe + .blockmap.
+- Tên artifact cố định tại package.json: build.artifactName.
+
+5) LƯU Ý
+- Update tải nền nhưng cài đặt cần restart.
+- Lỗi 404 thường do latest.yml trỏ sai tên file asset.
+
+6) THAY ĐỔI GẦN ĐÂY
+- Hiển thị version app ở header.
+- Sửa tên artifact để tránh 404.
+- Màu/legend phản lực gối: xanh đạt, đỏ không đạt, xám giới hạn.
+- Release mới: v0.3.2, v0.3.3.
+
+7) TÀI LIỆU
+- notes/push-guide.txt: hướng dẫn push/release nhanh.
