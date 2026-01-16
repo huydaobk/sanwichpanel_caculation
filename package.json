@@ -42,6 +42,7 @@
   "build": {
     "appId": "com.greenpan.design",
     "productName": "Greenpan Design",
+    "artifactName": "Greenpan-Design-Setup-${version}.${ext}",
     "directories": {
       "output": "release"
     },
