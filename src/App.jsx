@@ -528,6 +528,7 @@ export default function GreenpanDesign_Final() {
   const [activeTab, setActiveTab] = useState('input');
   const [printMode, setPrintMode] = useState(false);
   const [updateStatus, setUpdateStatus] = useState(null);
+  const [appVersion, setAppVersion] = useState('');
 
   React.useEffect(() => {
     const ipcRenderer = window?.require?.('electron')?.ipcRenderer;
@@ -544,7 +545,17 @@ export default function GreenpanDesign_Final() {
       });
     };
 
+    const loadVersion = async () => {
+      try {
+        const version = await ipcRenderer.invoke('app-version');
+        if (version) setAppVersion(version);
+      } catch (err) {
+        console.warn('Failed to load app version', err);
+      }
+    };
+
     ipcRenderer.on('auto-update', handler);
+    loadVersion();
     return () => ipcRenderer.removeListener('auto-update', handler);
   }, []);
 
@@ -1592,15 +1603,17 @@ export default function GreenpanDesign_Final() {
           <div><h1 className="text-xl font-bold leading-none">Greenpan Design (Wall)</h1></div>
         </div>
         <div className="flex items-center gap-3">
-          {(updateStatus?.event || updateStatus?.appVersion) && (
+          {(updateStatus?.event || updateStatus?.appVersion || appVersion) && (
             <div className="text-[11px] bg-slate-700/70 px-3 py-1 rounded-full whitespace-nowrap">
-              {updateStatus?.appVersion && <span className="mr-2">v{updateStatus.appVersion}</span>}
-              {updateStatus.event === 'checking' && 'Đang kiểm tra cập nhật...'}
-              {updateStatus.event === 'available' && `Có bản mới ${updateStatus.version || ''}`}
-              {updateStatus.event === 'not-available' && 'Không có cập nhật'}
-              {updateStatus.event === 'download-progress' && `Đang tải ${Math.round(updateStatus.percent || 0)}%`}
-              {updateStatus.event === 'downloaded' && `Đã tải xong ${updateStatus.version || ''}. Chuẩn bị cài...`}
-              {updateStatus.event === 'error' && `Lỗi cập nhật: ${updateStatus.message || ''}`}
+              {(updateStatus?.appVersion || appVersion) && (
+                <span className="mr-2">v{updateStatus?.appVersion || appVersion}</span>
+              )}
+              {updateStatus?.event === 'checking' && 'Đang kiểm tra cập nhật...'}
+              {updateStatus?.event === 'available' && `Có bản mới ${updateStatus.version || ''}`}
+              {updateStatus?.event === 'not-available' && 'Không có cập nhật'}
+              {updateStatus?.event === 'download-progress' && `Đang tải ${Math.round(updateStatus.percent || 0)}%`}
+              {updateStatus?.event === 'downloaded' && `Đã tải xong ${updateStatus.version || ''}. Chuẩn bị cài...`}
+              {updateStatus?.event === 'error' && `Lỗi cập nhật: ${updateStatus.message || ''}`}
             </div>
           )}
           <div className="flex gap-2">

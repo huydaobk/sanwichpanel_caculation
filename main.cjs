@@ -1,5 +1,4 @@
-const { app, BrowserWindow } = require('electron');
-const pkg = require('./package.json');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 
@@ -21,8 +20,9 @@ function createWindow() {
 
   // Load file index.html từ thư mục dist (sau khi build xong)
   mainWindow.loadFile(path.join(__dirname, 'dist', 'index.html'));
-  sendUpdateStatus('version', { appVersion: app.getVersion() });
 }
+
+ipcMain.handle('app-version', () => app.getVersion());
 
 function sendUpdateStatus(event, payload = {}) {
   if (!mainWindow || mainWindow.isDestroyed()) {
