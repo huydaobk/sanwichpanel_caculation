@@ -1,0 +1,159 @@
+TÀI LIỆU DIỄN GIẢI THUẬT TOÁN TÍNH TOÁN - GREENPAN APP
+=========================================================
+
+1. TỔNG QUAN (OVERVIEW)
+-----------------------
+Ứng dụng sử dụng phương pháp Phần tử hữu hạn (Finite Element Method - FEM) để phân tích dầm liên tục (continuous beam).
+Mô hình được xây dựng dựa trên lý thuyết dầm Timoshenko, cho phép tính đến biến dạng cắt (shear deformation), quan trọng đối với các tấm sandwich panel có lõi mềm.
+
+2. CÁC THÔNG SỐ ĐẦU VÀO (INPUT PARAMETERS)
+------------------------------------------
+- Hình học: Chiều dài các nhịp (L), vị trí gối tựa.
+- Vật liệu:
+  + Lớp tôn (Steel): Modulus đàn hồi (Es), mật độ (Rho_steel = 7850 kg/m3).
+  + Lớp lõi (Core): Modulus cắt (Gc), mật độ (Rho_core).
+- Tiết diện quy đổi (Equivalent Section Properties):
+  + Độ cứng uốn (EI): Tính toán dựa trên tiết diện sandwich.
+  + Độ cứng cắt (GA): Tính toán chủ yếu dựa trên lớp lõi.
+
+3. MÔ HÌNH TÍNH TOÁN (CALCULATION MODEL)
+----------------------------------------
+Sử dụng phần tử dầm Timoshenko (Timoshenko Beam Element).
+Ma trận độ cứng phần tử (Element Stiffness Matrix) [Ke] kích thước 4x4, phụ thuộc vào hệ số phi (ψ):
+
+    ψ (psi) = (12 * EI) / (κ * GA * L^2)
+
+Trong đó:
+- EI: Độ cứng uốn.
+- GA: Độ cứng cắt.
+- L: Chiều dài phần tử.
+- κ (kappa): Hệ số sửa chữa cắt (Shear correction factor), thường lấy bằng 1.0 hoặc 5/6 tùy tiết diện.
+
+Ma trận độ cứng [Ke] bao gồm các thành phần cho chuyển vị đứng (v) và góc xoay (θ) tại 2 đầu phần tử.
+
+4. XỬ LÝ TẢI TRỌNG (LOAD PROCESSING)
+------------------------------------
+Các tải trọng tác dụng lên dầm được quy đổi về tải trọng nút (Consistent Nodal Loads). Dưới đây là các ví dụ tính toán cụ thể:
+
+a) Tự trọng (Self-weight) & Tải phân bố đều (UDL):
+   Tải phân bố q (N/mm) được tính toán từ tải trọng bề mặt (kPa) nhân bề rộng diện truyền tải.
+   
+   *Ví dụ:*
+   - Nhịp L = 4000 mm. Tải phân bố đều q = 1.0 N/mm.
+   - Vector tải trọng nút {f} = [F1, M1, F2, M2]
+   - F1 = F2 = -qL/2 = -(1.0 * 4000)/2 = -2000 N (hướng xuống).
+   - M1 = -qL^2/12 = -(1.0 * 4000^2)/12 = -1,333,333 Nmm (cùng chiều kim đồng hồ).
+   - M2 = +qL^2/12 = +(1.0 * 4000^2)/12 = +1,333,333 Nmm (ngược chiều kim đồng hồ).
+
+b) Tải tập trung (Point Load):
+   Tải P tại vị trí a (tính từ đầu trái phần tử) được quy đổi về 2 đầu nút sử dụng hàm dáng.
+   
+   *Ví dụ:*
+   - Nhịp L = 4000 mm. Tải P = 5000 N đặt tại chính giữa nhịp (a = 2000 mm).
+   - b = L - a = 2000 mm.
+   - F1 = -(P * b^2 * (3a + b)) / L^3 = -(5000 * 2000^2 * (3*2000 + 2000)) / 4000^3 = -5000 * 0.5 = -2500 N.
+   - F2 = -P + |F1| = -2500 N.
+   - M1 = -(P * a * b^2) / L^2 = -(5000 * 2000 * 2000^2) / 4000^2 = -2,500,000 Nmm.
+   - M2 = +(P * a^2 * b) / L^2 = +(5000 * 2000^2 * 2000) / 4000^2 = +2,500,000 Nmm.
+
+c) Tải trọng nhiệt (Thermal Load):
+   Chênh lệch nhiệt độ ΔT gây ra mô-men uốn nhiệt (Thermal Moment, Mt).
+   
+   *Ví dụ:*
+   - Tính được mô-men nhiệt Mt = 1,200,000 Nmm do chênh lệch nhiệt độ.
+   - Vector tải trọng nút bổ sung {f_temp} = [0, -Mt, 0, Mt].
+   - Tại nút 1: Thêm mô-men tập trung -1,200,000 Nmm.
+   - Tại nút 2: Thêm mô-men tập trung +1,200,000 Nmm.
+
+d) Ví dụ Dầm Nhiều Nhịp (Multi-span Beam Example):
+   Xem xét dầm 2 nhịp đều nhau L = 4000 mm, chịu tải phân bố đều q.
+   Các nút: 1 (x=0), 2 (x=4000), 3 (x=8000).
+   
+   - **Phần tử 1 (Nút 1-2)**:
+     Vector tải trọng nút {f1} = [F1, M1, F2_left, M2_left]
+     F1 = ..., M1 = -qL^2/12
+     F2_left = ..., M2_left = +qL^2/12
+   
+   - **Phần tử 2 (Nút 2-3)**:
+     Vector tải trọng nút {f2} = [F2_right, M2_right, F3, M3]
+     F2_right = ..., M2_right = -qL^2/12
+     F3 = ..., M3 = +qL^2/12
+   
+   - **Lắp ghép tại Nút 2 (Node 2 Assembly)**:
+     Tải trọng tại nút 2 là tổng contributions từ phần tử 1 và 2.
+     Tổng Mô-men tại nút 2 (Global Load Vector index cho góc xoay nút 2):
+     M_node2 = M2_left + M2_right = (+qL^2/12) + (-qL^2/12) = 0.
+     (Mô-men cân bằng do tính đối xứng và liên tục).
+   
+   - **Liên kết**:
+     Các nút 1, 2, 3 đều bị khóa chuyển vị đứng (v=0).
+     Ẩn số cần tìm là góc xoay tại nút 1, 2, 3 (theta1, theta2, theta3).
+
+
+5. PHƯƠNG PHÁP GIẢI (SOLVER METHOD)
+-----------------------------------
+a) Lắp ghép ma trận toàn cầu (Global Matrix Assembly):
+   - Tổng hợp ma trận độ cứng [K] và vector tải trọng [F] từ các phần tử.
+   - Kích thước hệ phương trình: N x N (N là tổng số bậc tự do - DOFs).
+
+b) Xử lý liên kết (Boundary Conditions):
+   - Các gối tựa (Supports) ngăn cản chuyển vị đứng (v = 0).
+   - Khớp (Hinges): Nếu có khớp tại gối, bậc tự do xoay (θ) tại nút đó được tách đôi (xoay trái và xoay phải riêng biệt), làm tăng kích thước ma trận.
+
+c) Giải hệ phương trình tuyến tính:
+   Giải phương trình [K]{d} = {F} để tìm vector chuyển vị nút {d} (gồm chuyển vị đứng và góc xoay).
+   Sử dụng phương pháp khử Gaussian hoặc Cholesky (trong code hiện tại dùng khử Gaussian cơ bản).
+
+6. TÍNH TOÁN KẾT QUẢ (POST-PROCESSING)
+--------------------------------------
+Sau khi có chuyển vị nút {d}:
+
+a) Phản lực gối tựa (Reactions):
+   R = [K_toàn_cầu] * {d} - {F_ban_đầu}
+
+b) Nội lực (Internal Forces):
+   {f_el} = [k_el] * {d_el} - {f_load}
+   Kết quả bao gồm: Lực cắt (Shear V) và Mô-men uốn (Moment M).
+
+c) Ứng suất (Stress):
+   Sigma = (M * z_max) / I_eq
+   Kiểm tra ứng suất tại các thớ ngoài cùng của lớp tôn.
+
+d) Độ võng (Deflection):
+   Độ võng tại vị trí bất kỳ trong nhịp được nội suy từ chuyển vị nút sử dụng hàm dáng (Shape functions) của dầm.
+
+7. CÁC GIẢ THIẾT QUAN TRỌNG
+---------------------------
+- Vật liệu làm việc trong giai đoạn đàn hồi tuyến tính.
+- Biến dạng nhỏ (Small deformation theory).
+- Sự làm việc đồng thời giữa lớp tôn và lớp lõi (kết dính hoàn hảo).
+
+8. HỆ SỐ SỬA CHỮA CẮT (SHEAR CORRECTION FACTOR - K)
+---------------------------------------------------
+- **Định nghĩa**: Là hệ số điều chỉnh để tính đến sự phân bố không đều của ứng suất cắt trên mặt cắt ngang (trong lý thuyết dầm Timoshenko).
+- **Vai trò**: Ảnh hưởng trực tiếp đến tính toán biến dạng do cắt.
+  Công thức tính tham số phi (ψ): 
+  `ψ = (12 * EI) / (K * GA * L^2)`
+  
+- **Giá trị sử dụng trong App**: 
+  + Mặc định: **K = 1.0**.
+  + Lý do: Đối với tấm sandwich panel, vật liệu lõi chịu hầu hết lực cắt và ứng suất cắt phân bố gần như đều trên chiều cao lõi, nên giá trị K gần bằng 1.0 là hợp lý (trong khi tiết diện chữ nhật đồng nhất thường dùng K = 5/6).
+  
+- **Ý nghĩa thực tế**:
+  + Nếu tăng K (ví dụ lên vô cùng) -> ψ tiến về 0 -> Trở về dầm Bernoulli (bỏ qua biến dạng cắt).
+  + Nếu giảm K -> ψ tăng -> Độ cứng phần tử giảm -> Độ võng tính toán sẽ lớn hơn.
+  + Người dùng chuyên sâu có thể điều chỉnh hệ số này (thông qua config) nếu cần tinh chỉnh kết quả sát với thực nghiệm hoặc tiêu chuẩn cụ thể.
+
+9. TÀI LIỆU THAM KHẢO (REFERENCES)
+----------------------------------
+- **Shear Correction Factor (K)**:
+  + *Birman, V., & Bert, C. W. (2002). "On the choice of shear correction factor in sandwich structures"*
+    Kết luận rằng đối với các kết cấu sandwich, đặc biệt là loại có lõi mềm (low core stiffness) như foam/EPS/PU, hệ số sửa chữa cắt **K có thể lấy bằng 1.0** như một xấp xỉ ban đầu chính xác.
+  + *Zenkert, D. (1995). "The Handbook of Sandwich Construction"*
+    Tài liệu nền tảng về tính toán sandwich panel, cũng ủng hộ quan điểm ứng suất cắt phân bố đều trong lõi khi mặt (face) mỏng.
+
+
+
+---------------------------------------------------------
+Được tổng hợp từ mã nguồn ứng dụng (App.jsx).
+Date: 2026-01-19
