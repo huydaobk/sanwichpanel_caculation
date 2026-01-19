@@ -20,3 +20,4 @@ HƯỚNG DẪN PUSH LÊN MAIN (KÍCH HOẠT AUTO UPDATE)
 Lưu ý:
 - Chỉ commit kiểu feat:/fix:/feat!: mới tạo release tự động.
 - Sau khi push, GitHub Actions sẽ build installer và upload release assets.
+Comit + push
