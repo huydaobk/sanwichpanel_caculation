@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "dist": "vite build && electron-builder",
-    "release": "semantic-release"
+    "release": "semantic-release",
+    "test:regression": "node --test tests/regression/*.test.mjs"
   },
   "dependencies": {
     "electron-updater": "^6.1.8",

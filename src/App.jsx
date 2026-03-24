@@ -1,5 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import {
+  SECTION_CONSTANTS,
+  DEFAULT_REDISTRIBUTION_MODE,
+  DEFAULT_WRINKLING_MODE,
+  buildSectionProperties,
+  runPanelAnalysis,
+} from './calc';
+import {
   ComposedChart, Line, AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   ReferenceLine, Cell
@@ -310,183 +317,6 @@ const CeilingSchematic = ({ config, results }) => {
   );
 };
 
-// ✅ Helper: tìm max/min (dùng để vẽ đường đứng + label tự động)
-const getExtrema = (data, key) => {
-  let max = { x: 0, value: -Infinity };
-  let min = { x: 0, value: Infinity };
-
-  for (const p of data || []) {
-    const v = Number(p?.[key]);
-    if (!Number.isFinite(v)) continue;
-
-    if (v > max.value) max = { x: p.x, value: v };
-    if (v < min.value) min = { x: p.x, value: v };
-  }
-
-  if (!Number.isFinite(max.value)) max = { x: 0, value: 0 };
-  if (!Number.isFinite(min.value)) min = { x: 0, value: 0 };
-
-  return { max, min };
-};
-
-// ✅ Steel density (kg/m3)
-const RHO_STEEL = 7850;
-
-// ✅ Tự trọng panel theo kPa
-const calcSelfWeight_kPa = ({ coreDensity, coreThickness_mm, skinOut_mm, skinIn_mm }) => {
-  const tCore_m = (Number(coreThickness_mm) || 0) / 1000;
-  const tSteel_m = ((Number(skinOut_mm) || 0) + (Number(skinIn_mm) || 0)) / 1000;
-  const rhoCore = Number(coreDensity) || 0;
-
-  // kg/m2
-  const massPerArea = rhoCore * tCore_m + RHO_STEEL * tSteel_m;
-
-  // N/m2
-  const w_Nm2 = massPerArea * 9.81;
-
-  // kPa = N/m2 / 1000
-  return w_Nm2 / 1000;
-};
-
-// ✅ Equivalent nodal load cho Point Load P tại vị trí a (mm) trong phần tử dài L (mm)
-// Quy ước:
-// - PDown > 0: tải xuống
-// - F dương lên => tải xuống => F âm
-// - M dương CCW
-const consistentLoadPoint = (PDown, a, L) => {
-  const P = Number(PDown) || 0;
-  const aa = Math.min(Math.max(Number(a) || 0, 0), L);
-  const b = L - aa;
-  const L2 = L * L;
-  const L3 = L2 * L;
-
-  const F1 = -P * (b * b) * (3 * aa + b) / L3;
-  const F2 = -P * (aa * aa) * (aa + 3 * b) / L3;
-  const M1 = -P * aa * (b * b) / L2;
-  const M2 = +P * (aa * aa) * b / L2;
-
-  return [F1, M1, F2, M2];
-};
-
-// ✅ BeamDiagram (cho vách) — mũi tên nhỏ + bỏ mũi tên đen + in PDF chắc hiện
-const BeamDiagram = ({ spansM = [], windDirection = 'pressure', windPressure = 0 }) => {
-  const spans = (spansM || []).map(v => Number(v) || 0).filter(v => v > 0);
-  const totalL = spans.reduce((a, b) => a + b, 0) || 1;
-
-  const W = 900;
-  const H = 200;
-  const padL = 50;
-  const padR = 30;
-
-  const beamY = 92;
-  const dimY = 178;
-  const dimTextY = dimY - 10;
-
-  const isDown = windDirection === 'pressure';
-  const windText = isDown ? 'GIÓ ĐẨY (Pressure) → tải xuống' : 'GIÓ HÚT (Suction) → tải lên';
-
-  const xOf = (xm) => padL + (xm / totalL) * (W - padL - padR);
-
-  const supportLocs = [0];
-  let acc = 0;
-  for (const L of spans) { acc += L; supportLocs.push(acc); }
-
-  const nArrows = Math.max(10, Math.round(totalL * 4));
-  const arrows = Array.from({ length: nArrows + 1 }, (_, i) => (i / nArrows) * totalL);
-
-  const windX = xOf(totalL * 0.18);
-
-  const ArrowHead = ({ x, y, dir = 'down', w = 6, h = 6, fill = '#64748b' }) => {
-    let pts = '';
-    if (dir === 'down') pts = `${x},${y} ${x - w / 2},${y - h} ${x + w / 2},${y - h}`;
-    if (dir === 'up') pts = `${x},${y} ${x - w / 2},${y + h} ${x + w / 2},${y + h}`;
-    if (dir === 'left') pts = `${x},${y} ${x + h},${y - w / 2} ${x + h},${y + w / 2}`;
-    if (dir === 'right') pts = `${x},${y} ${x - h},${y - w / 2} ${x - h},${y + w / 2}`;
-    return <polygon points={pts} fill={fill} />;
-  };
-
-  const WindArrow = ({ x, y1, y2, down }) => {
-    const stroke = '#16a34a';
-    return (
-      <g>
-        <line x1={x} y1={y1} x2={x} y2={y2} stroke={stroke} strokeWidth="1.2" opacity="0.95" />
-        <ArrowHead x={x} y={y2} dir={down ? 'down' : 'up'} w={6} h={6} fill={stroke} />
-      </g>
-    );
-  };
-
-  const DimLine = ({ x1, x2, y }) => {
-    const stroke = '#64748b'; // ✅ bỏ đen
-    return (
-      <g>
-        <line x1={x1} y1={y} x2={x2} y2={y} stroke={stroke} strokeWidth="1.2" opacity="0.9" />
-        <ArrowHead x={x1} y={y} dir="right" w={6} h={6} fill={stroke} />
-        <ArrowHead x={x2} y={y} dir="left" w={6} h={6} fill={stroke} />
-      </g>
-    );
-  };
-
-  return (
-    <div className="w-full">
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="160" className="block">
-        <rect x={windX - 160} y={8} width={320} height={24} rx={6} fill="#f3f4f6" stroke="#d1d5db" />
-        <text x={windX} y={25} textAnchor="middle" fontSize="12" fontWeight="800" fill="#111827">
-          {windText}{Number.isFinite(Number(windPressure)) ? ` (q = ${Number(windPressure).toFixed(2)} kPa)` : ''}
-        </text>
-
-        <line x1={xOf(0)} y1={beamY} x2={xOf(totalL)} y2={beamY} stroke="#111827" strokeWidth="4" />
-
-        {supportLocs.map((xm, i) => {
-          const x = xOf(xm);
-          const tri = ` ${x},${beamY} ${x - 14},${beamY + 22} ${x + 14},${beamY + 22} `;
-          return (
-            <g key={i}>
-              <polygon points={tri} fill="#e5e7eb" stroke="#111827" strokeWidth="1.2" />
-              <text x={x} y={beamY + 38} textAnchor="middle" fontSize="10" fill="#111827" fontWeight="700">
-                G{i}
-              </text>
-            </g>
-          );
-        })}
-
-        {/* ✅ UDL arrows (no marker => in report chắc hiện) */}
-        {arrows.map((xm, idx) => {
-          const x = xOf(xm);
-          const y1 = isDown ? 60 : 72;
-          const y2 = isDown ? 82 : 50;
-          return <WindArrow key={idx} x={x} y1={y1} y2={y2} down={isDown} />;
-        })}
-
-        {/* Dimension lines từng nhịp + đường gióng */}
-        {spans.map((L, i) => {
-          const xL = xOf(supportLocs[i]);
-          const xR = xOf(supportLocs[i + 1]);
-
-          const x1 = xL;
-          const x2 = xR;
-
-          const mid = (x1 + x2) / 2;
-          const extTop = beamY + 4;
-          const extBot = dimY - 6;
-
-          return (
-            <g key={i}>
-              <line x1={xL} y1={extTop} x2={xL} y2={extBot} stroke="#111827" strokeWidth="1" opacity="0.35" />
-              <line x1={xR} y1={extTop} x2={xR} y2={extBot} stroke="#111827" strokeWidth="1" opacity="0.35" />
-
-              <DimLine x1={x1} x2={x2} y={dimY} />
-
-              <text x={mid} y={dimTextY} textAnchor="middle" fontSize="10" fill="#111827">
-                L{i + 1} = {Number(L).toFixed(2)} m
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-    </div>
-  );
-};
-
 export default function GreenpanDesign_Final() {
   // --- CONFIG STATE ---
   const [config, setConfig] = useState({
@@ -500,6 +330,10 @@ export default function GreenpanDesign_Final() {
     steelYield: 280,
     coreShearStrength: 0.12,
     coreShearModulus: 3.5,
+    compressiveModulus: 4.0,
+    wrinklingMode: DEFAULT_WRINKLING_MODE,
+    wrinklingStress: 120,
+    redistributionMode: DEFAULT_REDISTRIBUTION_MODE,
     kappaShear: 1.0,
     coreDensity: 42,
     windPressure: 0.8,
@@ -559,23 +393,9 @@ export default function GreenpanDesign_Final() {
     return () => ipcRenderer.removeListener('auto-update', handler);
   }, []);
 
-  // --- CONSTANTS ---
-  const CONSTANTS = {
-    Ef: 210000,
-    Ec: 4.0,
-    fCc: 0.10,
-    alpha: 1.2e-5,
-    gammaF_wind: 2.1,
-    gammaM_yield: 1.1,
-    gammaM_shear: 1.25,
-    gammaM_wrinkling: 1.2,
-    gammaM_screw: 1.33,
-  };
-
-  // --- HANDLERS ---
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    if (['panelType', 'windDirection', 'internalWallType', 'projectName', 'deadLoadMode'].includes(name)) {
+    if (['panelType', 'windDirection', 'internalWallType', 'projectName', 'deadLoadMode', 'wrinklingMode', 'redistributionMode'].includes(name)) {
       if (name === 'panelType') {
         const recommendedLimit =
           value === 'external' ? 150 :
@@ -638,7 +458,6 @@ export default function GreenpanDesign_Final() {
 
   const setCoreThickness = (val) => setConfig(prev => ({ ...prev, coreThickness: val }));
 
-  // ✅ FIX: In/PDF ổn định (chuyển sang tab report trước, đợi render xong rồi in)
   const handlePrint = () => {
     setActiveTab('report');
     setPrintMode(true);
@@ -650,904 +469,9 @@ export default function GreenpanDesign_Final() {
     });
   };
 
-  // =========================
-  // PATCH B: FEM (Timoshenko) + Redistribution (plastic hinge ở gối)
-  // =========================
-  const KAPPA_SHEAR = Number(config.kappaShear) || 1.0;
-  const REDISTRIBUTION = {
-    enabled: true,
-    maxIter: 4,
-    hingeTrigger: 1.0,
-  };
-
-  const timoshenkoElementK = (EI, GA, L, kappa = 1.0) => {
-    const GAeff = Math.max(GA, 1e-9);
-    const psi = (12 * EI) / (kappa * GAeff * L * L);
-    const fac = EI / (Math.pow(L, 3) * (1 + psi));
-    const L2 = L * L;
-
-    return [
-      [fac * 12, fac * (6 * L), fac * (-12), fac * (6 * L)],
-      [fac * (6 * L), fac * ((4 + psi) * L2), fac * (-6 * L), fac * ((2 - psi) * L2)],
-      [fac * (-12), fac * (-6 * L), fac * 12, fac * (-6 * L)],
-      [fac * (6 * L), fac * ((2 - psi) * L2), fac * (-6 * L), fac * ((4 + psi) * L2)],
-    ];
-  };
-
-  // qDown: dương = tải xuống (N/mm). FE: v dương = hướng lên.
-  const consistentLoadUDL = (qDown, L) => {
-    return [-qDown * L / 2, -qDown * L * L / 12, -qDown * L / 2, qDown * L * L / 12];
-  };
-
-  const matVec = (A, x) => {
-    const n = A.length;
-    const y = new Array(n).fill(0);
-    for (let i = 0; i < n; i++) {
-      let s = 0;
-      for (let j = 0; j < x.length; j++) s += A[i][j] * x[j];
-      y[i] = s;
-    }
-    return y;
-  };
-
-  const solveLinear = (Ain, bin) => {
-    const n = Ain.length;
-    const A = Ain.map(r => r.slice());
-    const b = bin.slice();
-
-    for (let k = 0; k < n; k++) {
-      let piv = k;
-      let maxAbs = Math.abs(A[k][k]);
-      for (let i = k + 1; i < n; i++) {
-        const v = Math.abs(A[i][k]);
-        if (v > maxAbs) { maxAbs = v; piv = i; }
-      }
-      if (maxAbs < 1e-12) return new Array(n).fill(0);
-
-      if (piv !== k) {
-        [A[k], A[piv]] = [A[piv], A[k]];
-        [b[k], b[piv]] = [b[piv], b[k]];
-      }
-
-      for (let i = k + 1; i < n; i++) {
-        const f = A[i][k] / A[k][k];
-        if (Math.abs(f) < 1e-18) continue;
-        for (let j = k; j < n; j++) A[i][j] -= f * A[k][j];
-        b[i] -= f * b[k];
-      }
-    }
-
-    const x = new Array(n).fill(0);
-    for (let i = n - 1; i >= 0; i--) {
-      let s = b[i];
-      for (let j = i + 1; j < n; j++) s -= A[i][j] * x[j];
-      x[i] = s / A[i][i];
-    }
-    return x;
-  };
-
-  // hinges[i] = true => node i (gối trong) bị "tách góc" (khớp)
-  // hinges[i] = true => node i (gối trong) bị "tách góc" (khớp)
-  const solveContinuousBeam = ({ spansM, qDown, EI, GA, hinges, pointLoads, thermalMoment = 0 }) => {
-    const nSpan = spansM.length;
-    const nNode = nSpan + 1;
-
-    const vDof = Array.from({ length: nNode }, (_, i) => i);
-    let next = nNode;
-
-    const thShared = new Array(nNode).fill(null);
-    const thLeft = new Array(nNode).fill(null);
-    const thRight = new Array(nNode).fill(null);
-
-    for (let i = 0; i < nNode; i++) {
-      const isEnd = (i === 0 || i === nNode - 1);
-      const isHinge = !isEnd && hinges?.[i] === true;
-
-      if (!isHinge) {
-        thShared[i] = next++;
-      } else {
-        thLeft[i] = next++;
-        thRight[i] = next++;
-      }
-    }
-
-    const ndof = next;
-    const K = Array.from({ length: ndof }, () => new Array(ndof).fill(0));
-    const F = new Array(ndof).fill(0);
-
-    const elem = [];
-    const addK = (I, J, val) => { K[I][J] += val; };
-
-    for (let e = 0; e < nSpan; e++) {
-      const i = e;
-      const j = e + 1;
-      const L = (Number(spansM[e]) || 0) * 1000;
-      if (L <= 0) continue;
-
-      const dof = [];
-      dof[0] = vDof[i];
-      dof[2] = vDof[j];
-
-      if (i !== 0 && i !== nNode - 1 && hinges?.[i]) dof[1] = thRight[i];
-      else dof[1] = thShared[i];
-
-      if (j !== 0 && j !== nNode - 1 && hinges?.[j]) dof[3] = thLeft[j];
-      else dof[3] = thShared[j];
-
-      const ke = timoshenkoElementK(EI, GA, L, KAPPA_SHEAR);
-      const fe = consistentLoadUDL(qDown, L);
-
-      // ✅ Thermal Nodal Loads: [0, -Mt, 0, Mt]
-      const feTemp = [0, -thermalMoment, 0, thermalMoment];
-
-      const x0 = spansM.slice(0, e).reduce((s, v) => s + (Number(v) || 0), 0) * 1000;
-      const x1 = x0 + L;
-
-      let fePoint = [0, 0, 0, 0];
-      for (const pl of pointLoads || []) {
-        const xg = Number(pl.x_mm);
-        const Pn = Number(pl.P_N);
-        if (!Number.isFinite(xg) || !Number.isFinite(Pn)) continue;
-        if (xg < x0 - 1e-9 || xg > x1 + 1e-9) continue;
-
-        const a = xg - x0;
-        const fep = consistentLoadPoint(Pn, a, L);
-        fePoint = fePoint.map((v, k) => v + fep[k]);
-      }
-
-      const feTotal = fe.map((v, k) => v + fePoint[k] + feTemp[k]);
-
-      for (let a = 0; a < 4; a++) {
-        F[dof[a]] += feTotal[a];
-        for (let b = 0; b < 4; b++) addK(dof[a], dof[b], ke[a][b]);
-      }
-
-      elem.push({ e, i, j, L, dof, ke, fe: feTotal, qDown });
-    }
-
-    const constrained = vDof.slice();
-    const free = [];
-    for (let d = 0; d < ndof; d++) {
-      if (!constrained.includes(d)) free.push(d);
-    }
-
-    const Kff = free.map(r => free.map(c => K[r][c]));
-    const Ff = free.map(r => F[r]);
-
-    const df = free.length > 0 ? solveLinear(Kff, Ff) : [];
-    const d = new Array(ndof).fill(0);
-    for (let k = 0; k < free.length; k++) d[free[k]] = df[k];
-
-    const Kd = matVec(K, d);
-    const reactions = new Array(nNode).fill(0);
-    for (let i = 0; i < nNode; i++) {
-      const dofi = vDof[i];
-      reactions[i] = Kd[dofi] - F[dofi]; // (+) lên
-    }
-
-    const elementForces = elem.map(el => {
-      const de = el.dof.map(idx => d[idx]);
-      const p = matVec(el.ke, de).map((v, k) => v - el.fe[k]);
-      const V1 = p[0];
-      const M1 = -p[1];
-      const V2 = p[2];
-      const M2 = -p[3];
-
-      return { ...el, p, V1, M1, V2, M2 };
-    });
-
-    return { ndof, d, reactions, elementForces, nNode };
-  };
-
-  const beamShapeW = (L, x, v1, th1, v2, th2) => {
-    const xi = x / L;
-    const N1 = 1 - 3 * xi * xi + 2 * xi * xi * xi;
-    const N2 = L * (xi - 2 * xi * xi + xi * xi * xi);
-    const N3 = 3 * xi * xi - 2 * xi * xi * xi;
-    const N4 = L * (-xi * xi + xi * xi * xi);
-    return N1 * v1 + N2 * th1 + N3 * v2 + N4 * th2;
-  };
-
-  // --- CALCULATION ENGINE ---
   const results = useMemo(() => {
-    const panelWidth = Number(config.panelWidth) || 1000;
-    const coreShearModulus = Number(config.coreShearModulus) || 0;
-    const gammaThermal = Number(config.gammaF_thermal) || 1.0;
-
-    const dC = Number(config.coreThickness) || 0;
-    const tF1 = Number(config.skinOut) || 0;
-    const tF2 = Number(config.skinIn) || 0;
-
-    const zOut = dC / 2 + tF1 / 2;
-    const zIn = -(dC / 2 + tF2 / 2);
-    const e = zOut - zIn;
-
-    const Af1 = panelWidth * tF1;
-    const Af2 = panelWidth * tF2;
-    const Ac = panelWidth * dC;
-
-    const zNA = (Af1 + Af2) > 0 ? (Af1 * zOut + Af2 * zIn) / (Af1 + Af2) : 0;
-
-    const I_face_out = panelWidth * Math.pow(tF1, 3) / 12;
-    const I_face_in = panelWidth * Math.pow(tF2, 3) / 12;
-    const I_core = panelWidth * Math.pow(dC, 3) / 12;
-
-    const EI_faces = CONSTANTS.Ef * (I_face_out + Af1 * Math.pow(zOut - zNA, 2) + I_face_in + Af2 * Math.pow(zIn - zNA, 2));
-    const EI_core = CONSTANTS.Ec * (I_core + Ac * Math.pow(zNA, 2));
-    const EI = EI_faces + EI_core;
-
-    const I_eq = CONSTANTS.Ef > 0 ? EI / CONSTANTS.Ef : 0;
-    const zOutEff = Math.abs(zOut - zNA);
-    const zInEff = Math.abs(zIn - zNA);
-    const zMax = Math.max(zOutEff, zInEff);
-
-    const GA_inst = coreShearModulus * Ac;
-    const qLineFactor = panelWidth / 1000;
-
-    const windBase = Math.abs(Number(config.windPressure) || 0);
-    const windSign = config.windDirection === 'suction' ? -1 : 1;
-    const qWindDisplay_kPa = windBase * windSign;
-
-    let qDead_kPa = 0;
-    let qLive_kPa = 0;
-
-    if (config.panelType === 'ceiling') {
-      if (config.deadLoadMode === 'manual') {
-        qDead_kPa = Number(config.deadLoadManual_kPa) || 0;
-      } else {
-        qDead_kPa = calcSelfWeight_kPa({
-          coreDensity: config.coreDensity,
-          coreThickness_mm: config.coreThickness,
-          skinOut_mm: config.skinOut,
-          skinIn_mm: config.skinIn,
-        });
-      }
-      qLive_kPa = Number(config.liveLoad_kPa) || 0;
-    }
-
-    const gammaG = Number(config.gammaG) || 1.35;
-    const gammaQ = Number(config.gammaQ) || 1.5;
-
-    // Load Combinations (Mechanical Only) - Envelope pressure/suction
-    const baseCases = [
-      {
-        id: 'pressure',
-        qWind_kPa: windBase,
-        gammaG: gammaG,
-        gammaQ: gammaQ,
-        includeLiveSLS: true,
-        includeVariablePoints: true,
-      },
-      {
-        id: 'suction',
-        qWind_kPa: -windBase,
-        gammaG: 0.9 * gammaG,
-        gammaQ: 0,
-        includeLiveSLS: false,
-        includeVariablePoints: false,
-      },
-    ];
-
-    const buildCaseLoads = (caseDef) => {
-      if (config.panelType === 'ceiling') {
-        const liveSLS = caseDef.includeLiveSLS ? qLive_kPa : 0;
-        const liveULS = caseDef.gammaQ > 0 ? qLive_kPa : 0;
-        const qSLS_kPa = qDead_kPa + liveSLS + caseDef.qWind_kPa;
-        const qULS_kPa = (caseDef.gammaG * qDead_kPa) + (caseDef.gammaQ * liveULS) + (CONSTANTS.gammaF_wind * caseDef.qWind_kPa);
-        return {
-          ...caseDef,
-          qSLS_kPa,
-          qULS_kPa,
-          qSLS_line: qSLS_kPa * qLineFactor,
-          qULS_line: qULS_kPa * qLineFactor,
-        };
-      }
-
-      const qSLS_kPa = caseDef.qWind_kPa;
-      const qULS_kPa = caseDef.qWind_kPa * CONSTANTS.gammaF_wind;
-      return {
-        ...caseDef,
-        qSLS_kPa,
-        qULS_kPa,
-        qSLS_line: qSLS_kPa * qLineFactor,
-        qULS_line: qULS_kPa * qLineFactor,
-      };
-    };
-
-    const mechanicalCases = baseCases.map(buildCaseLoads);
-    const selectedCase = mechanicalCases.find(caseDef => caseDef.qWind_kPa === qWindDisplay_kPa) || mechanicalCases[0];
-
-    // Thermal Load
-    const tempOut = Number(config.tempOut) || 0;
-    const tempIn = Number(config.tempIn) || 0;
-    const dT = tempOut - tempIn;
-
-    // Thermal Moment: M = EI * alpha * dT / e
-    const dT_ULS = dT * gammaThermal;
-    const dT_SLS = dT * 1.0;
-
-    const Mt_Unit = (e > 0) ? (-EI * CONSTANTS.alpha / e) : 0;
-    const Mt_ULS = Mt_Unit * dT_ULS;
-    const Mt_SLS = Mt_Unit * dT_SLS;
-
-    const spansM = config.spans.map(s => Number(s) || 0);
-    const nSpan = spansM.length;
-    const nNode = nSpan + 1;
-
-    // ✅ CREEP:
-    // - internal cold_storage: creep cho toàn bộ tải SLS (độ cứng cắt giảm dài hạn)
-    // - ceiling: creep chỉ cho tải lâu dài (dead + point loads)
-    // - còn lại: không creep
-    const isColdStorage = config.panelType === 'internal' && config.internalWallType === 'cold_storage';
-    const creepMode = isColdStorage ? 'all' : (config.panelType === 'ceiling' ? 'sustained_dead' : 'none');
-    const phiShear = creepMode !== 'none' ? (Number(config.creepFactor) || 0) : 0;
-    const phiBending = creepMode !== 'none' ? (Number(config.creepFactorBending) || 0) : 0;
-    const GA_long = GA_inst / Math.max(1 + phiShear, 1e-6);
-    const EI_long = EI / Math.max(1 + phiBending, 1e-6);
-
-    const limitDenom = Number(config.deflectionLimit) || 150;
-
-    const sigma_w = 0.5 * Math.sqrt(CONSTANTS.Ef * CONSTANTS.Ec * Math.max(coreShearModulus, 0));
-    const sigma_w_design = sigma_w / CONSTANTS.gammaM_wrinkling;
-    const steelYield = Number(config.steelYield) || 280;
-    const sigma_y_design = steelYield / CONSTANTS.gammaM_yield;
-    const sigma_comp_limit = Math.min(sigma_w_design, sigma_y_design);
-    const sigma_limit = sigma_comp_limit;
-    const M_Rd = (sigma_comp_limit * I_eq) / Math.max(zMax, 1e-9);
-    const stressFromMoment = (moment) => (Math.abs(moment) * zMax) / Math.max(I_eq, 1e-9);
-
-    // support ticks
-    let supportLocs = [0];
-    let accum = 0;
-    spansM.forEach(Lm => { accum += Lm; supportLocs.push(parseFloat(accum.toFixed(2))); });
-
-    const totalLength_mm = spansM.reduce((s, v) => s + (Number(v) || 0), 0) * 1000;
-
-    const pointLoads = (config.panelType === 'ceiling' ? (config.pointLoads || []) : [])
-      .map(pl => ({
-        x_mm: (Number(pl.x_m) || 0) * 1000,
-        P_N: (Number(pl.P_kN) || 0) * 1000,
-        note: pl.note || '',
-        type: pl.type || 'permanent',
-      }))
-      .filter(pl => Number.isFinite(pl.x_mm) && Number.isFinite(pl.P_N))
-      .filter(pl => pl.x_mm >= 0 && pl.x_mm <= totalLength_mm);
-
-    const qDead_line = qDead_kPa * qLineFactor;
-
-    const pointLoadsPermanent = pointLoads.filter(pl => pl.type !== 'variable');
-
-    const scalePointLoads = (loads, gammaG_case, gammaQ_case, includeVariable) => {
-      return loads
-        .filter(pl => includeVariable || pl.type !== 'variable')
-        .map(pl => ({
-          ...pl,
-          P_N: pl.P_N * (pl.type === 'variable' ? gammaQ_case : gammaG_case),
-        }));
-    };
-
-    const scalePointLoadsSLS = (loads, includeVariable) => {
-      return loads
-        .filter(pl => includeVariable || pl.type !== 'variable')
-        .map(pl => ({ ...pl }));
-    };
-
-    const emptySol = { elementForces: [], reactions: new Array(nNode).fill(0), d: [] };
-
-    const solULS_Temp = (EI > 0 && nSpan >= 1)
-      ? solveContinuousBeam({ spansM, qDown: 0, EI, GA: GA_inst, hinges: new Array(nNode).fill(false), pointLoads: [], thermalMoment: Mt_ULS })
-      : emptySol;
-
-    const solSLS_Temp = (EI > 0 && nSpan >= 1)
-      ? solveContinuousBeam({ spansM, qDown: 0, EI, GA: GA_inst, hinges: new Array(nNode).fill(false), pointLoads: [], thermalMoment: Mt_SLS })
-      : emptySol;
-
-    let solSLS_Sust_Short = emptySol;
-    let solSLS_Sust_Long = emptySol;
-
-    if (EI > 0 && nSpan >= 1 && creepMode === 'sustained_dead') {
-      const hasSust = Math.abs(qDead_kPa) > 1e-12 || pointLoadsPermanent.length > 0;
-      if (hasSust) {
-        solSLS_Sust_Short = solveContinuousBeam({ spansM, qDown: qDead_line, EI, GA: GA_inst, hinges: new Array(nNode).fill(false), pointLoads: pointLoadsPermanent, thermalMoment: 0 });
-        solSLS_Sust_Long = solveContinuousBeam({ spansM, qDown: qDead_line, EI: EI_long, GA: GA_long, hinges: new Array(nNode).fill(false), pointLoads: pointLoadsPermanent, thermalMoment: 0 });
-      }
-    }
-
-    const getElem = (sol, eIdx) => sol?.elementForces?.find(x => x.e === eIdx);
-
-    const caseResults = mechanicalCases.map((caseDef) => {
-      const pointLoadsSLS = scalePointLoadsSLS(pointLoads, caseDef.includeVariablePoints);
-      const pointLoadsULS = scalePointLoads(pointLoads, caseDef.gammaG, caseDef.gammaQ, caseDef.includeVariablePoints);
-
-      let hinges = new Array(nNode).fill(false);
-      let solULS_Mech = emptySol;
-
-      if (EI > 0 && nSpan >= 1) {
-        for (let it = 0; it < (REDISTRIBUTION.enabled ? REDISTRIBUTION.maxIter : 1); it++) {
-          solULS_Mech = solveContinuousBeam({ spansM, qDown: caseDef.qULS_line, EI, GA: GA_inst, hinges, pointLoads: pointLoadsULS, thermalMoment: 0 });
-
-          if (!REDISTRIBUTION.enabled || M_Rd <= 0) break;
-
-          let changed = false;
-          for (let i = 1; i <= nNode - 2; i++) {
-            if (hinges[i]) continue;
-
-            const M_mech_L = getElem(solULS_Mech, i - 1)?.M2 || 0;
-            const M_temp_L = getElem(solULS_Temp, i - 1)?.M2 || 0;
-            const M_total_L = M_mech_L + M_temp_L;
-
-            const M_mech_R = getElem(solULS_Mech, i)?.M1 || 0;
-            const M_temp_R = getElem(solULS_Temp, i)?.M1 || 0;
-            const M_total_R = M_mech_R + M_temp_R;
-
-            const Mi = 0.5 * (M_total_L + M_total_R);
-
-            if (Math.abs(Mi) > REDISTRIBUTION.hingeTrigger * M_Rd) {
-              hinges[i] = true;
-              changed = true;
-            }
-          }
-          if (!changed) break;
-        }
-      }
-
-      let solSLS_Mech_Short = emptySol;
-      let solSLS_Mech_Long = emptySol;
-
-      if (EI > 0 && nSpan >= 1) {
-        solSLS_Mech_Short = solveContinuousBeam({ spansM, qDown: caseDef.qSLS_line, EI, GA: GA_inst, hinges: new Array(nNode).fill(false), pointLoads: pointLoadsSLS, thermalMoment: 0 });
-
-        if (creepMode === 'all') {
-          solSLS_Mech_Long = solveContinuousBeam({ spansM, qDown: caseDef.qSLS_line, EI: EI_long, GA: GA_long, hinges: new Array(nNode).fill(false), pointLoads: pointLoadsSLS, thermalMoment: 0 });
-        }
-      }
-
-      return {
-        ...caseDef,
-        hinges,
-        solULS_Mech,
-        solSLS_Mech_Short,
-        solSLS_Mech_Long,
-        pointLoadsULS,
-        pointLoadsSLS,
-      };
-    });
-
-    // 3) Chart data
-    let chartData = [];
-    const steps = 40;
-
-    let maxMomentNeg = -Infinity;
-    let maxMomentPos = Infinity;
-    let maxMomentAbs = 0;
-    let maxShear = 0;
-    let maxDeflection = 0;
-    let maxDeflectionRatio = 0;
-    let maxDeflectionForRatio = 0;
-    let worstDeflectionLimit = 0;
-
-    let globalX = 0; // mm
-
-    // helper lấy DOF local
-    const getLocalDisp = (el, sol) => {
-      if (!el || !sol?.d) return [0, 0, 0, 0];
-      const de = el.dof.map(idx => sol.d[idx] || 0);
-      return de;
-    };
-
-    const supportMomentEnvelope = new Array(nNode).fill(0);
-    const hingeNotes = new Set();
-
-    caseResults.forEach(caseRes => {
-      caseRes.hinges.forEach((isHinge, idx) => {
-        if (isHinge) hingeNotes.add(idx);
-      });
-
-      for (let i = 0; i < nNode; i++) {
-        const leftElem = i - 1 >= 0 ? getElem(caseRes.solULS_Mech, i - 1) : null;
-        const rightElem = getElem(caseRes.solULS_Mech, i);
-        const leftTemp = i - 1 >= 0 ? getElem(solULS_Temp, i - 1) : null;
-        const rightTemp = getElem(solULS_Temp, i);
-
-        const M_left = leftElem ? (leftElem.M2 + (leftTemp?.M2 || 0)) : null;
-        const M_right = rightElem ? (rightElem.M1 + (rightTemp?.M1 || 0)) : null;
-
-        const absLeft = M_left == null ? 0 : Math.abs(M_left);
-        const absRight = M_right == null ? 0 : Math.abs(M_right);
-        const absNode = Math.max(absLeft, absRight);
-
-        if (absNode > supportMomentEnvelope[i]) supportMomentEnvelope[i] = absNode;
-      }
-    });
-
-    for (let eIdx = 0; eIdx < nSpan; eIdx++) {
-      const Lm = spansM[eIdx];
-      const L = Lm * 1000;
-      if (L <= 0) continue;
-
-      const spanStart_mm = globalX;
-      const spanEnd_mm = globalX + L;
-
-      const spanCases = caseResults.map(caseRes => {
-        const elULS_Mech = getElem(caseRes.solULS_Mech, eIdx);
-        const elULS_Temp = getElem(solULS_Temp, eIdx);
-
-        const V1_Mech = elULS_Mech ? elULS_Mech.V1 : 0;
-        const M1_Mech = elULS_Mech ? elULS_Mech.M1 : 0;
-        const V1_Temp = elULS_Temp ? elULS_Temp.V1 : 0;
-        const M1_Temp = elULS_Temp ? elULS_Temp.M1 : 0;
-
-        const elSLS_Mech = getElem(caseRes.solSLS_Mech_Short, eIdx);
-        const de_Mech = getLocalDisp(elSLS_Mech, caseRes.solSLS_Mech_Short);
-
-        const elSLS_MechLong = (creepMode === 'all') ? getElem(caseRes.solSLS_Mech_Long, eIdx) : null;
-        const de_MechLong = getLocalDisp(elSLS_MechLong, caseRes.solSLS_Mech_Long);
-
-        const loadsInSpan = (caseRes.pointLoadsULS || [])
-          .filter(pl => pl.x_mm >= spanStart_mm - 1e-9 && pl.x_mm <= spanEnd_mm + 1e-9)
-          .map(pl => ({ a_mm: pl.x_mm - spanStart_mm, P_N: pl.P_N, note: pl.note }))
-          .sort((a, b) => a.a_mm - b.a_mm);
-
-        return {
-          caseRes,
-          V1_Mech,
-          M1_Mech,
-          V1_Temp,
-          M1_Temp,
-          de_Mech,
-          de_MechLong,
-          loadsInSpan,
-        };
-      });
-
-      const selectedSpan = spanCases.find(caseSpan => caseSpan.caseRes.id === selectedCase.id) || spanCases[0];
-
-      const elSLS_Temp = getElem(solSLS_Temp, eIdx);
-      const de_Temp = getLocalDisp(elSLS_Temp, solSLS_Temp);
-
-      const elSus_Short = (creepMode === 'sustained_dead') ? getElem(solSLS_Sust_Short, eIdx) : null;
-      const deSus_Short = getLocalDisp(elSus_Short, solSLS_Sust_Short);
-
-      const elSus_Long = (creepMode === 'sustained_dead') ? getElem(solSLS_Sust_Long, eIdx) : null;
-      const deSus_Long = getLocalDisp(elSus_Long, solSLS_Sust_Long);
-
-      // Samples
-      const samples = [];
-      for (let i = 0; i <= steps; i++) samples.push({ x_mm: (i / steps) * L, pr: 1, mode: 'grid' });
-      spanCases.forEach(caseSpan => {
-        for (const ev of caseSpan.loadsInSpan) {
-          samples.push({ x_mm: ev.a_mm, pr: 0, mode: 'pre' });
-          samples.push({ x_mm: ev.a_mm, pr: 2, mode: 'post' });
-        }
-      });
-      samples.sort((u, v) => (u.x_mm - v.x_mm) || (u.pr - v.pr));
-
-      const sumPoint = (loads, x_mm, mode) => {
-        let sP = 0;
-        for (const ev of loads) {
-          if (mode === 'pre') { if (ev.a_mm < x_mm - 1e-9) sP += ev.P_N; }
-          else { if (ev.a_mm <= x_mm + 1e-9) sP += ev.P_N; }
-        }
-        return sP;
-      };
-
-      let spanMaxDeflection = 0;
-
-      for (const smp of samples) {
-        const x = smp.x_mm;
-
-        const w_temp_up = beamShapeW(L, x, de_Temp[0], de_Temp[1], de_Temp[2], de_Temp[3]);
-        const w_temp_down = -w_temp_up;
-
-        const selectedLoads = selectedSpan ? selectedSpan.loadsInSpan : [];
-        const selectedDeMech = selectedSpan ? selectedSpan.de_Mech : [0, 0, 0, 0];
-        const selectedDeMechLong = selectedSpan ? selectedSpan.de_MechLong : [0, 0, 0, 0];
-        const selectedCaseRes = selectedSpan ? selectedSpan.caseRes : { qULS_line: 0 };
-
-        const PsumSelected = selectedSpan ? sumPoint(selectedLoads, x, smp.mode) : 0;
-        const Vx_Mech_Selected = selectedSpan ? (selectedSpan.V1_Mech - selectedCaseRes.qULS_line * x - PsumSelected) : 0;
-        const Mx_Mech_Selected = selectedSpan
-          ? (selectedSpan.M1_Mech + selectedSpan.V1_Mech * x - (selectedCaseRes.qULS_line * x * x) / 2 - selectedLoads
-            .filter(ev => (smp.mode === 'pre' ? ev.a_mm < x - 1e-9 : ev.a_mm <= x + 1e-9))
-            .reduce((acc2, ev) => acc2 + ev.P_N * (x - ev.a_mm), 0))
-          : 0;
-        const Vx_Selected = Vx_Mech_Selected + (selectedSpan ? selectedSpan.V1_Temp : 0);
-        const Mx_Selected = Mx_Mech_Selected + (selectedSpan ? selectedSpan.M1_Temp + selectedSpan.V1_Temp * x : 0);
-
-        const w_mech_short_up_sel = beamShapeW(L, x, selectedDeMech[0], selectedDeMech[1], selectedDeMech[2], selectedDeMech[3]);
-
-        let w_creep_inc_up_sel = 0;
-        if (creepMode === 'all') {
-          const w_long_up = beamShapeW(L, x, selectedDeMechLong[0], selectedDeMechLong[1], selectedDeMechLong[2], selectedDeMechLong[3]);
-          w_creep_inc_up_sel = (w_long_up - w_mech_short_up_sel);
-        } else if (creepMode === 'sustained_dead') {
-          const w_sus_short = beamShapeW(L, x, deSus_Short[0], deSus_Short[1], deSus_Short[2], deSus_Short[3]);
-          const w_sus_long = beamShapeW(L, x, deSus_Long[0], deSus_Long[1], deSus_Long[2], deSus_Long[3]);
-          w_creep_inc_up_sel = (w_sus_long - w_sus_short);
-        }
-
-        const w_total_up_sel = w_mech_short_up_sel + w_temp_up + w_creep_inc_up_sel;
-        const w_total_down_sel = -w_total_up_sel;
-        const w_mech_short_down_sel = -w_mech_short_up_sel;
-        const w_creep_down_sel = -w_creep_inc_up_sel;
-
-        let envelopeMoment = 0;
-        let envelopeShear = 0;
-        let envelopeDeflection = 0;
-        let envelopeDeflectionWind = 0;
-        let envelopeDeflectionCreep = 0;
-        let envelopeDeflectionAbs = -Infinity;
-        let envelopeMomentAbs = -Infinity;
-        let envelopeShearAbs = -Infinity;
-
-        for (const caseSpan of spanCases) {
-          const Psum = sumPoint(caseSpan.loadsInSpan, x, smp.mode);
-
-          const Vx_Mech = caseSpan.V1_Mech - caseSpan.caseRes.qULS_line * x - Psum;
-          const Mx_Mech = caseSpan.M1_Mech + caseSpan.V1_Mech * x - (caseSpan.caseRes.qULS_line * x * x) / 2 - caseSpan.loadsInSpan
-            .filter(ev => (smp.mode === 'pre' ? ev.a_mm < x - 1e-9 : ev.a_mm <= x + 1e-9))
-            .reduce((acc2, ev) => acc2 + ev.P_N * (x - ev.a_mm), 0);
-
-          const Vx = Vx_Mech + caseSpan.V1_Temp;
-          const Mx = Mx_Mech + caseSpan.M1_Temp + caseSpan.V1_Temp * x;
-
-          const momentAbs = Math.abs(Mx);
-          if (momentAbs > envelopeMomentAbs) {
-            envelopeMomentAbs = momentAbs;
-            envelopeMoment = Mx;
-          }
-
-          const shearAbs = Math.abs(Vx);
-          if (shearAbs > envelopeShearAbs) {
-            envelopeShearAbs = shearAbs;
-            envelopeShear = Vx;
-          }
-
-          const w_mech_short_up = beamShapeW(L, x, caseSpan.de_Mech[0], caseSpan.de_Mech[1], caseSpan.de_Mech[2], caseSpan.de_Mech[3]);
-
-          let w_creep_inc_up = 0;
-          if (creepMode === 'all') {
-            const w_long_up = beamShapeW(L, x, caseSpan.de_MechLong[0], caseSpan.de_MechLong[1], caseSpan.de_MechLong[2], caseSpan.de_MechLong[3]);
-            w_creep_inc_up = (w_long_up - w_mech_short_up);
-          } else if (creepMode === 'sustained_dead') {
-            const w_sus_short = beamShapeW(L, x, deSus_Short[0], deSus_Short[1], deSus_Short[2], deSus_Short[3]);
-            const w_sus_long = beamShapeW(L, x, deSus_Long[0], deSus_Long[1], deSus_Long[2], deSus_Long[3]);
-            w_creep_inc_up = (w_sus_long - w_sus_short);
-          }
-
-          const w_total_up = w_mech_short_up + w_temp_up + w_creep_inc_up;
-          const w_total_down = -w_total_up;
-
-          const deflectionAbs = Math.abs(w_total_down);
-          if (deflectionAbs > envelopeDeflectionAbs) {
-            envelopeDeflectionAbs = deflectionAbs;
-            envelopeDeflection = w_total_down;
-            envelopeDeflectionWind = -w_mech_short_up;
-            envelopeDeflectionCreep = -w_creep_inc_up;
-          }
-        }
-
-        if (envelopeMoment > maxMomentNeg) maxMomentNeg = envelopeMoment;
-        if (envelopeMoment < maxMomentPos) maxMomentPos = envelopeMoment;
-        if (Math.abs(envelopeMoment) > maxMomentAbs) maxMomentAbs = Math.abs(envelopeMoment);
-        if (Math.abs(envelopeShear) > maxShear) maxShear = Math.abs(envelopeShear);
-        if (Math.abs(envelopeDeflection) > maxDeflection) maxDeflection = Math.abs(envelopeDeflection);
-        if (Math.abs(envelopeDeflection) > spanMaxDeflection) spanMaxDeflection = Math.abs(envelopeDeflection);
-
-        chartData.push({
-          x: parseFloat(((globalX + x) / 1000).toFixed(3)),
-          moment: parseFloat((Mx_Selected / 1e6).toFixed(2)),
-          shear: parseFloat((Vx_Selected / 1000).toFixed(2)),
-
-          deflectionWind: parseFloat(w_mech_short_down_sel.toFixed(1)),
-          deflectionThermal: parseFloat(w_temp_down.toFixed(1)),
-          deflectionCreep: parseFloat(w_creep_down_sel.toFixed(1)),
-          deflectionTotal: parseFloat(w_total_down_sel.toFixed(1)),
-
-          limitPlus: parseFloat((L / limitDenom).toFixed(1)),
-          limitMinus: -parseFloat((L / limitDenom).toFixed(1)),
-        });
-      }
-
-      const spanLimit = L / limitDenom;
-      if (spanLimit > 0) {
-        const spanRatio = spanMaxDeflection / spanLimit;
-        if (spanRatio > maxDeflectionRatio) {
-          maxDeflectionRatio = spanRatio;
-          maxDeflectionForRatio = spanMaxDeflection;
-          worstDeflectionLimit = spanLimit;
-        }
-      }
-
-      globalX += L;
-    }
-
-    if (!Number.isFinite(maxMomentNeg)) maxMomentNeg = 0;
-    if (!Number.isFinite(maxMomentPos)) maxMomentPos = 0;
-    if (!Number.isFinite(maxMomentAbs)) maxMomentAbs = 0;
-
-    const maxSupportMomentAbs = supportMomentEnvelope.length > 0 ? Math.max(...supportMomentEnvelope) : 0;
-    if (worstDeflectionLimit === 0) {
-      worstDeflectionLimit = (Math.max(...spansM) * 1000) / limitDenom;
-    }
-
-    const deflectionCheck = maxDeflectionForRatio > 0 ? maxDeflectionForRatio : maxDeflection;
-    maxDeflection = deflectionCheck;
-
-    const extrema = {
-      deflectionTotal: getExtrema(chartData, 'deflectionTotal'),
-      moment: getExtrema(chartData, 'moment'),
-      shear: getExtrema(chartData, 'shear'),
-    };
-
-    // 4) Reactions (Combined ULS envelope)
-    const reactionEnvelope = caseResults.map(caseRes => {
-      const reactMech = caseRes.solULS_Mech?.reactions || new Array(nNode).fill(0);
-      const reactTemp = solULS_Temp?.reactions || new Array(nNode).fill(0);
-      return reactMech.map((rm, i) => rm + reactTemp[i]);
-    });
-
-    const screwSpacing = Number(config.screwSpacing) || 0;
-    const screwStrength = Number(config.screwStrength) || 0;
-    const screwCount = screwSpacing > 0 ? Math.max(1, Math.round(panelWidth / screwSpacing)) : 1;
-    const T_Rd_N = screwStrength > 0 ? (screwStrength * 1000 * screwCount) / Math.max(CONSTANTS.gammaM_screw, 1e-9) : 0;
-    const upliftEnabled = config.panelType !== 'ceiling' && T_Rd_N > 0;
-
-    let maxReactionCompression = 0;
-    let maxReactionTension = 0;
-    let maxReactionRatio = 0;
-    let maxUpliftRatio = 0;
-
-    const reactionData = (config.supportWidths || []).map((widthVal, idx) => {
-      const width = Number(widthVal) || 60;
-      const reactionsAtSupport = reactionEnvelope.map(arr => arr[idx] || 0);
-      const R_comp = Math.max(...reactionsAtSupport.map(r => Math.max(r, 0)));
-      const R_tension = Math.max(...reactionsAtSupport.map(r => Math.max(-r, 0)));
-
-      const F_Rd = (CONSTANTS.fCc * panelWidth * width) / CONSTANTS.gammaM_shear;
-      const crushingRatio = F_Rd > 0 ? R_comp / F_Rd : 999;
-      const upliftRatio = upliftEnabled && T_Rd_N > 0 ? R_tension / T_Rd_N : 0;
-
-      if (R_comp > maxReactionCompression) maxReactionCompression = R_comp;
-      if (R_tension > maxReactionTension) maxReactionTension = R_tension;
-      if (crushingRatio > maxReactionRatio) maxReactionRatio = crushingRatio;
-      if (upliftRatio > maxUpliftRatio) maxUpliftRatio = upliftRatio;
-
-      return {
-        id: idx,
-        name: `Gối ${idx}`,
-        R_Ed: parseFloat((R_comp / 1000).toFixed(2)),
-        F_Rd: parseFloat((F_Rd / 1000).toFixed(2)),
-        ratio: crushingRatio,
-        status: crushingRatio <= 1 ? 'pass' : 'fail',
-        reqWidth: CONSTANTS.fCc > 0 ? (R_comp * CONSTANTS.gammaM_shear) / (CONSTANTS.fCc * panelWidth) : 0,
-        R_uplift: parseFloat((R_tension / 1000).toFixed(2)),
-        T_Rd: parseFloat((T_Rd_N / 1000).toFixed(2)),
-        upliftRatio,
-        upliftStatus: upliftEnabled ? (upliftRatio <= 1 ? 'pass' : 'fail') : 'na',
-      };
-    });
-
-    const worstSupport = reactionData.find(s => s.ratio === maxReactionRatio) || { F_Rd: 0 };
-    const worstUplift = reactionData.find(s => s.upliftRatio === maxUpliftRatio) || { T_Rd: 0 };
-
-    // 5) Capacity checks
-    const stress_span_val = stressFromMoment(maxMomentAbs);
-    const stress_support_val = stressFromMoment(maxSupportMomentAbs);
-
-    const fCv_input = Number(config.coreShearStrength) || 0.12;
-    const V_Rd = (fCv_input * Ac) / CONSTANTS.gammaM_shear;
-    const w_limit = worstDeflectionLimit;
-
-    const ratios = {
-      bending: sigma_limit > 0 ? stress_span_val / sigma_limit : 0,
-      support: sigma_limit > 0 ? stress_support_val / sigma_limit : 0,
-      shear: V_Rd > 0 ? maxShear / V_Rd : 0,
-      crushing: maxReactionRatio,
-      deflection: maxDeflectionRatio,
-      uplift: upliftEnabled ? maxUpliftRatio : 0,
-    };
-
-    let status = 'pass';
-    if (
-      ratios.bending > 1 ||
-      ratios.support > 1 ||
-      ratios.shear > 1 ||
-      ratios.crushing > 1 ||
-      ratios.deflection > 1 ||
-      (upliftEnabled && ratios.uplift > 1)
-    ) status = 'fail';
-
-    const hingeNoteList = Array.from(hingeNotes);
-
-    let advice = [];
-    if (hingeNoteList.length > 0) {
-      advice.push(`Đã kích hoạt tái phân phối nội lực (khớp) tại gối: ${hingeNoteList.join(', ')} (ULS).`);
-    }
-    if (creepMode !== 'none') {
-      const creepNote = phiBending > 0 ? `φ = ${phiShear}, φb = ${phiBending}` : `φ = ${phiShear}`;
-      advice.push(`SLS đã xét từ biến lõi (${creepNote}). Mode: ${creepMode === 'all' ? 'toàn tải SLS' : 'chỉ tải lâu dài (dead + tải treo)'}.`);
-    }
-    if (ratios.bending > 1) advice.push("Nguy cơ nhăn tôn/chảy thép: Tăng độ dày tôn hoặc giảm nhịp.");
-    if (ratios.support > 1) advice.push("Ứng suất tại gối cao: tăng độ dày tôn hoặc tăng bề rộng gối.");
-    if (ratios.shear > 1) advice.push("Lực cắt quá lớn: tăng cường độ cắt của lõi hoặc tăng độ dày Panel.");
-    reactionData.forEach(s => {
-      if (s.status === 'fail') advice.push(`Gối ${s.id} bị quá tải ép dập. Cần tăng bề rộng lên > ${Math.ceil(s.reqWidth)}mm.`);
-      if (upliftEnabled && s.upliftStatus === 'fail') advice.push(`Gối ${s.id} bị nhổ (uplift). Cần tăng số lượng/khoảng cách vít hoặc tăng khả năng vít.`);
-    });
-    if (ratios.deflection > 1) advice.push("Độ võng lớn: tăng độ dày Panel.");
-    if (upliftEnabled && ratios.uplift > 1) advice.push("Liên kết chống nhổ không đủ: kiểm tra vít và bố trí liên kết.");
-    if (advice.length === 0) advice.push("Thiết kế Đạt yêu cầu và An toàn.");
-
-    return {
-      chartData,
-      reactionData,
-
-      M_Rd,
-      V_Rd,
-      F_Rd_Worst: worstSupport.F_Rd * 1000,
-      T_Rd_Worst: worstUplift.T_Rd * 1000,
-
-      limitDenom,
-      w_limit,
-
-      maxMomentNeg,
-      maxMomentPos,
-      maxMomentAbs,
-      maxSupportMoment: maxSupportMomentAbs,
-      maxShear,
-      maxReaction: maxReactionCompression,
-      maxUplift: maxReactionTension,
-      maxDeflection,
-
-      ratios,
-      status,
-      advice,
-
-      stress_span: stress_span_val,
-      stress_support: stress_support_val,
-      sigma_limit,
-      supportLocs,
-
-      extrema,
-
-      creepMode,
-      phiShear,
-      phiBending,
-
-      panelWidth,
-      screwCount,
-
-      // ✅ NEW: để sơ đồ trần hiển thị q
-      qDead_kPa: qDead_kPa,
-      qLive_kPa: qLive_kPa,
-      qWind_kPa: qWindDisplay_kPa,
-      qSLS_kPa: selectedCase.qSLS_kPa,
-      qULS_kPa: selectedCase.qULS_kPa,
-      dT_deg: dT,
-      Mt_ULS_kNm: Mt_ULS / 1e6,
-
-      // ✅ Section properties for detailed report
-      EI,
-      GA_inst,
-      GA_long,
-      EI_long,
-      e,
-      Af1,
-      Af2,
-      Ac,
-      I_eq,
-      zMax,
-      sigma_w,
-      sigma_w_design,
-      sigma_y_design,
-      gammaG,
-      gammaQ,
-      gammaThermal,
-      dC,
-      tF1,
-      tF2,
-    };
+    const { summary } = runPanelAnalysis(config, { defaultRedistributionMode: DEFAULT_REDISTRIBUTION_MODE });
+    return summary;
   }, [config]);
 
   const CustomTooltip = ({ active, payload, label }) => {
@@ -1782,7 +706,17 @@ export default function GreenpanDesign_Final() {
                 <div><label className="text-xs block font-bold text-red-600">Thép Fy (MPa)</label><input type="number" name="steelYield" value={config.steelYield} onChange={handleInputChange} className="w-full border p-2 rounded" /></div>
                 <div><label className="text-xs block">Cường độ Cắt Lõi (MPa)</label><input type="number" step="0.01" name="coreShearStrength" value={config.coreShearStrength} onChange={handleInputChange} className="w-full border p-2 rounded" /></div>
                 <div><label className="text-xs block">Mô đun cắt lõi Gc (MPa)</label><input type="number" step="0.1" name="coreShearModulus" value={config.coreShearModulus} onChange={handleInputChange} className="w-full border p-2 rounded" /></div>
+                <div><label className="text-xs block">Mô đun nén lõi Ec (MPa)</label><input type="number" step="0.1" name="compressiveModulus" value={config.compressiveModulus} onChange={handleInputChange} className="w-full border p-2 rounded" /></div>
                 <div><label className="text-xs block">Hệ số kappa (shear)</label><input type="number" step="0.05" name="kappaShear" value={config.kappaShear} onChange={handleInputChange} className="w-full border p-2 rounded" /></div>
+                <div><label className="text-xs block">Wrinkling mode</label><select name="wrinklingMode" value={config.wrinklingMode} onChange={handleInputChange} className="w-full border p-2 rounded"><option value="declared">declared</option><option value="approx">approx</option><option value="yield-only">yield-only</option></select></div>
+                <div>
+                  <label className="text-xs block">Wrinkling stress khai báo (MPa)</label>
+                  <input type="number" step="0.1" name="wrinklingStress" value={config.wrinklingStress} onChange={handleInputChange} className="w-full border p-2 rounded" />
+                  {config.wrinklingMode === 'declared' && !(Number(config.wrinklingStress) > 0) && (
+                    <p className="text-[11px] text-amber-700 mt-1">Thiếu giá trị wrinkling declared hợp lệ; báo cáo sẽ gắn cờ declared-missing và fallback theo yield-only.</p>
+                  )}
+                </div>
+                <div><label className="text-xs block">Redistribution mode</label><select name="redistributionMode" value={config.redistributionMode} onChange={handleInputChange} className="w-full border p-2 rounded"><option value="elastic">elastic</option><option value="simplified">simplified</option></select></div>
                 {config.panelType !== 'ceiling' && (
                   <>
                     <div><label className="text-xs block">Khả năng Vít (kN)</label><input type="number" step="0.1" name="screwStrength" value={config.screwStrength} onChange={handleInputChange} className="w-full border p-2 rounded" /></div>
@@ -2192,7 +1126,10 @@ export default function GreenpanDesign_Final() {
                 <div className="flex justify-between"><span>Tỷ trọng lõi:</span> <b>{config.coreDensity} kg/m3</b></div>
                 <div className="flex justify-between"><span>Cường độ cắt lõi:</span> <b>{config.coreShearStrength} MPa</b></div>
                 <div className="flex justify-between"><span>Mô đun cắt lõi Gc:</span> <b>{config.coreShearModulus} MPa</b></div>
+                <div className="flex justify-between"><span>Mô đun nén lõi Ec:</span> <b>{config.compressiveModulus} MPa</b></div>
                 <div className="flex justify-between"><span>Hệ số kappa:</span> <b>{config.kappaShear}</b></div>
+                <div className="flex justify-between"><span>Wrinkling mode:</span> <b>{results.wrinklingMode}</b></div>
+                <div className="flex justify-between"><span>Redistribution mode:</span> <b>{results.redistributionMode}</b></div>
                 <div className="flex justify-between"><span>Tải trọng Gió/Áp suất:</span> <b>{config.windPressure} kPa ({config.windDirection})</b></div>
                 <div className="flex justify-between"><span>Chênh lệch nhiệt độ:</span> <b>{Math.abs(config.tempOut - config.tempIn)} °C</b></div>
                 <div className="flex justify-between"><span>Hệ số nhiệt γT:</span> <b>{config.gammaF_thermal}</b></div>
@@ -2341,7 +1278,13 @@ export default function GreenpanDesign_Final() {
 
                 <h4 className="font-bold text-blue-800 mt-3">2.4 Kiểm tra ứng suất uốn (Bending Check - ULS)</h4>
                 <div className="p-2 bg-gray-50 rounded border border-gray-200 mt-1 text-[10px] font-mono space-y-1">
-                  <p><strong>Ứng suất nhăn:</strong> σ<sub>w</sub> = 0.5√(E<sub>f</sub>·E<sub>c</sub>·G<sub>c</sub>) = 0.5×√(210000×4×{config.coreShearModulus}) = <b>{results.sigma_w.toFixed(1)} MPa</b></p>
+                  <p><strong>Wrinkling mode:</strong> {results.wrinklingMode} {results.sigma_w_source ? `(source: ${results.sigma_w_source})` : ''}</p>
+                  {results.wrinklingDeclaredMissing && (
+                    <p className="text-amber-700"><strong>Cảnh báo input:</strong> mode declared nhưng thiếu/0 wrinkling stress; check hiện đang fallback theo <b>{results.wrinklingFallbackMode}</b>.</p>
+                  )}
+                  <p><strong>Ứng suất nhăn xấp xỉ:</strong> σ<sub>w,approx</sub> = 0.5√(E<sub>f</sub>·E<sub>c</sub>·G<sub>c</sub>) = 0.5×√(210000×{results.compressiveModulus}×{config.coreShearModulus}) = <b>{results.sigma_w_approx.toFixed(1)} MPa</b></p>
+                  <p><strong>Ứng suất nhăn khai báo:</strong> σ<sub>w,declared</sub> = <b>{results.sigma_w_declared.toFixed(1)} MPa</b></p>
+                  <p><strong>Ứng suất nhăn dùng trong kiểm tra:</strong> σ<sub>w</sub> = <b>{results.sigma_w.toFixed(1)} MPa</b></p>
                   <p><strong>Thiết kế nhăn:</strong> σ<sub>w,d</sub> = σ<sub>w</sub>/γ<sub>M,w</sub> = {results.sigma_w.toFixed(1)}/1.2 = <b>{results.sigma_w_design.toFixed(1)} MPa</b></p>
                   <p><strong>Thiết kế chảy:</strong> σ<sub>y,d</sub> = f<sub>y</sub>/γ<sub>M,y</sub> = {config.steelYield}/1.1 = <b>{results.sigma_y_design.toFixed(1)} MPa</b></p>
                   <p><strong>Giới hạn:</strong> σ<sub>limit</sub> = min(σ<sub>w,d</sub>, σ<sub>y,d</sub>) = min({results.sigma_w_design.toFixed(1)}, {results.sigma_y_design.toFixed(1)}) = <b>{results.sigma_limit.toFixed(1)} MPa</b></p>
@@ -2351,6 +1294,7 @@ export default function GreenpanDesign_Final() {
 
                 <h4 className="font-bold text-blue-800 mt-3">2.5 Kiểm tra lực cắt (Shear Check - ULS)</h4>
                 <div className="p-2 bg-gray-50 rounded border border-gray-200 mt-1 text-[10px] font-mono space-y-1">
+                  <p><strong>Redistribution mode:</strong> {results.redistributionMode} {results.redistributionEnabled ? '(hinge-based simplified redistribution enabled)' : '(pure elastic envelope)'}</p>
                   <p><strong>Khả năng chịu cắt:</strong> V<sub>Rd</sub> = f<sub>Cv</sub>·A<sub>c</sub>/γ<sub>M</sub> = {config.coreShearStrength}×{results.Ac.toFixed(0)}/1.25 = <b>{(results.V_Rd / 1000).toFixed(2)} kN/m</b></p>
                   <p><strong>Lực cắt tính toán:</strong> V<sub>Ed,max</sub> = <b>{(results.maxShear / 1000).toFixed(2)} kN/m</b></p>
                   <p><strong>Tỷ lệ:</strong> V<sub>Ed</sub>/V<sub>Rd</sub> = {(results.maxShear / 1000).toFixed(2)}/{(results.V_Rd / 1000).toFixed(2)} = <b>{(results.ratios.shear * 100).toFixed(0)}%</b></p>
@@ -2363,7 +1307,16 @@ export default function GreenpanDesign_Final() {
                   <p><strong>Tỷ lệ:</strong> w<sub>total</sub>/w<sub>limit</sub> = {results.maxDeflection.toFixed(1)}/{results.w_limit.toFixed(1)} = <b>{(results.ratios.deflection * 100).toFixed(0)}%</b></p>
                 </div>
 
-                <h4 className="font-bold text-blue-800 mt-3">2.7 Kết quả tổng hợp</h4>
+                <h4 className="font-bold text-blue-800 mt-3">2.7 Governing cases</h4>
+                <div className="p-2 bg-amber-50 rounded border border-amber-200 mt-1 text-[10px] font-mono space-y-1">
+                  <p><strong>Moment:</strong> {results.governingCases?.moment?.label} — {(results.governingCases?.moment?.ratio * 100).toFixed(0)}%</p>
+                  <p><strong>Shear:</strong> {results.governingCases?.shear?.label} — {(results.governingCases?.shear?.ratio * 100).toFixed(0)}%</p>
+                  <p><strong>Deflection:</strong> {results.governingCases?.deflection?.label} — {(results.governingCases?.deflection?.ratio * 100).toFixed(0)}%</p>
+                  <p><strong>Uplift:</strong> {results.governingCases?.uplift?.label} — {(results.governingCases?.uplift?.ratio * 100).toFixed(0)}%</p>
+                  <p><strong>Overall:</strong> {results.governingCases?.overall?.label} — {(results.governingCases?.overall?.ratio * 100).toFixed(0)}%</p>
+                </div>
+
+                <h4 className="font-bold text-blue-800 mt-3">2.8 Kết quả tổng hợp</h4>
                 <table className="w-full text-xs border-collapse border border-gray-300 mt-1">
                   <thead className="bg-gray-100 font-bold text-gray-700">
                     <tr>
