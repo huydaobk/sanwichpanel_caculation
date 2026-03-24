@@ -317,6 +317,132 @@ const CeilingSchematic = ({ config, results }) => {
   );
 };
 
+const BeamDiagram = ({ spansM = [], windDirection = 'pressure', windPressure = 0 }) => {
+  const spans = (spansM || []).map((s) => Number(s) || 0).filter((s) => s > 0);
+  const supportLocs = (() => {
+    let acc = 0;
+    const arr = [0];
+    spans.forEach((L) => {
+      acc += L;
+      arr.push(Number(acc.toFixed(3)));
+    });
+    return arr;
+  })();
+
+  const totalM = supportLocs[supportLocs.length - 1] || 0;
+  const W = 900;
+  const H = 220;
+  const marginL = 40;
+  const marginR = 40;
+  const beamY = 80;
+  const supTopY = beamY + 6;
+  const supBottomY = 120;
+  const dimY = 176;
+  const loadTopY = 34;
+  const loadBottomY = beamY - 10;
+  const nArrows = 14;
+  const isSuction = windDirection === 'suction';
+  const qWind = Number(windPressure) || 0;
+
+  const xMap = (xm) => {
+    if (totalM <= 0) return marginL;
+    return marginL + (xm / totalM) * (W - marginL - marginR);
+  };
+
+  const supports = supportLocs.map((xm, i) => ({ xm, i, x: xMap(xm) }));
+
+  const ArrowHead = ({ x, y, dir = 'down', w = 6, h = 6, fill = '#64748b' }) => {
+    let pts = '';
+    if (dir === 'down') pts = `${x},${y} ${x - w / 2},${y - h} ${x + w / 2},${y - h}`;
+    if (dir === 'up') pts = `${x},${y} ${x - w / 2},${y + h} ${x + w / 2},${y + h}`;
+    if (dir === 'left') pts = `${x},${y} ${x + h},${y - w / 2} ${x + h},${y + w / 2}`;
+    if (dir === 'right') pts = `${x},${y} ${x - h},${y - w / 2} ${x - h},${y + w / 2}`;
+    return <polygon points={pts} fill={fill} />;
+  };
+
+  const DimLine = ({ x1, x2, y }) => {
+    const stroke = '#64748b';
+    return (
+      <g>
+        <line x1={x1} y1={y} x2={x2} y2={y} stroke={stroke} strokeWidth="1.4" />
+        <ArrowHead x={x1} y={y} dir="right" w={6} h={6} fill={stroke} />
+        <ArrowHead x={x2} y={y} dir="left" w={6} h={6} fill={stroke} />
+      </g>
+    );
+  };
+
+  const LoadArrow = ({ x }) => (
+    <g>
+      <line x1={x} y1={isSuction ? beamY + 34 : loadTopY} x2={x} y2={isSuction ? beamY + 10 : loadBottomY} stroke="#16a34a" strokeWidth="1.4" />
+      <ArrowHead x={x} y={isSuction ? beamY + 10 : loadBottomY} dir={isSuction ? 'up' : 'down'} w={6} h={6} fill="#16a34a" />
+    </g>
+  );
+
+  const arrowXs = Array.from({ length: nArrows }, (_, i) => {
+    const t = (i + 0.5) / nArrows;
+    return marginL + t * (W - marginL - marginR);
+  });
+
+  return (
+    <div className="w-full" style={{ overflow: 'visible' }}>
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="210" style={{ overflow: 'visible' }}>
+        <text x={marginL} y={14} fontSize="12" fill="#0f172a" fontWeight="700">
+          Sơ đồ tính — Tấm vách
+        </text>
+
+        <line x1={marginL} y1={beamY} x2={W - marginR} y2={beamY} stroke="#0f172a" strokeWidth="4" />
+
+        {supports.map((s) => (
+          <g key={s.i}>
+            <polygon
+              points={`${s.x},${supTopY} ${s.x - 14},${supBottomY} ${s.x + 14},${supBottomY}`}
+              fill="#e2e8f0"
+              stroke="#64748b"
+              strokeWidth="1"
+            />
+            <line x1={s.x - 22} y1={supBottomY} x2={s.x + 22} y2={supBottomY} stroke="#64748b" strokeWidth="2" />
+            <text x={s.x} y={supBottomY + 16} fontSize="10" fill="#334155" textAnchor="middle" fontWeight="700">
+              Gối {s.i}
+            </text>
+          </g>
+        ))}
+
+        {supports.slice(0, -1).map((s, idx) => {
+          const s2 = supports[idx + 1];
+          const mid = (s.x + s2.x) / 2;
+          return (
+            <g key={`dim-${idx}`}>
+              <DimLine x1={s.x} x2={s2.x} y={dimY} />
+              <text x={mid} y={dimY - 7} fontSize="10" fill="#334155" textAnchor="middle" fontWeight="700">
+                L{idx + 1} = {spans[idx].toFixed(2)} m
+              </text>
+            </g>
+          );
+        })}
+
+        {qWind !== 0 && (
+          <g>
+            <text x={marginL - 6} y={isSuction ? beamY + 52 : loadTopY - 6} fontSize="10" fill="#16a34a" textAnchor="end" fontWeight="600">
+              {isSuction ? 'Gió hút' : 'Gió đẩy'}
+            </text>
+            {arrowXs.map((x, i) => <LoadArrow key={`load-${i}`} x={x} />)}
+          </g>
+        )}
+
+        <rect x={W - marginR - 190} y={dimY + 10} width={170} height={34} rx={8} fill="#f8fafc" stroke="#e2e8f0" />
+        <rect x={W - marginR - 178} y={dimY + 22} width={16} height={6} rx={2} fill="#16a34a" />
+        <text x={W - marginR - 154} y={dimY + 28} fontSize="10" fill="#0f172a" fontWeight="600">
+          Gió: {qWind.toFixed(3)} kPa
+        </text>
+
+        <text x={marginL} y={H - 10} fontSize="10" fill="#64748b">
+          Trục X: 0 → {totalM.toFixed(2)} m
+        </text>
+      </svg>
+    </div>
+  );
+};
+
 export default function GreenpanDesign_Final() {
   // --- CONFIG STATE ---
   const [config, setConfig] = useState({

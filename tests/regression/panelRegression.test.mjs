@@ -167,3 +167,22 @@ test('governing case/report summary có đủ data moment/shear/deflection/overa
   assert.equal(typeof nodeAtX(summary.chartData, 1.5)?.shear, 'number');
   assert.equal(typeof nodeAtX(summary.chartData, 4.5)?.shear, 'number');
 });
+
+test('wall modes vẫn phân tích/summary ổn định và không phụ thuộc point loads trần', () => {
+  for (const panelType of ['external', 'internal']) {
+    const { summary } = computeResults({
+      ...baseConfig,
+      panelType,
+      internalWallType: panelType === 'internal' ? 'normal' : 'normal',
+      pointLoads: [],
+      deflectionLimit: panelType === 'external' ? 150 : 200,
+    });
+
+    assert.ok(Array.isArray(summary.chartData) && summary.chartData.length > 0, `${panelType}: chartData phải có dữ liệu`);
+    assert.ok(Array.isArray(summary.reactionData) && summary.reactionData.length === 3, `${panelType}: reactionData phải đủ 3 gối`);
+    assert.equal(typeof summary.qWind_kPa, 'number', `${panelType}: qWind_kPa phải là number`);
+    assert.equal(typeof summary.maxDeflection, 'number', `${panelType}: maxDeflection phải là number`);
+    assert.equal(typeof summary.maxUplift, 'number', `${panelType}: maxUplift phải là number`);
+    assert.ok(summary.governingCases?.overall?.label, `${panelType}: governingCases.overall.label phải tồn tại`);
+  }
+});
