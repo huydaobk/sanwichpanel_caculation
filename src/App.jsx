@@ -15,6 +15,31 @@ import {
   Settings, Thermometer, TrendingUp, AlertCircle, Printer, BookOpen, Activity, Info
 } from 'lucide-react';
 
+const WRINKLING_MODE_LABELS = {
+  declared: 'Khai báo trực tiếp',
+  approx: 'Xấp xỉ',
+  'yield-only': 'Chỉ theo giới hạn chảy',
+};
+
+const WRINKLING_SOURCE_LABELS = {
+  declared: 'Khai báo trực tiếp',
+  approx: 'Xấp xỉ',
+  'yield-only': 'Chỉ theo giới hạn chảy',
+  'declared-missing': 'Thiếu dữ liệu khai báo hợp lệ',
+};
+
+const REDISTRIBUTION_MODE_LABELS = {
+  elastic: 'Đàn hồi',
+  simplified: 'Đơn giản hóa',
+};
+
+const WIND_DIRECTION_LABELS = {
+  pressure: 'Gió đẩy',
+  suction: 'Gió hút',
+};
+
+const getModeLabel = (value, labels) => labels[value] || value || '—';
+
 // ===============================
 // ✅ SƠ ĐỒ TÍNH (SVG) - TRẦN: X toàn dầm
 // - KHÔNG dùng marker => in PDF/tab Báo cáo chắc chắn hiện mũi tên
@@ -106,7 +131,7 @@ const CeilingSchematic = ({ config, results }) => {
   const loadBands = [
     {
       key: 'dead',
-      label: 'Dead load',
+      label: 'Tĩnh tải',
       value: qDead,
       color: '#64748b',
       up: false,
@@ -662,7 +687,7 @@ export default function GreenpanDesign_Final() {
           </div>
         </div>
         <div className="text-right">
-          <div className="text-sm font-bold text-slate-500">PROJECT</div>
+          <div className="text-sm font-bold text-slate-500">DỰ ÁN</div>
           <div className="text-lg font-bold">{config.projectName}</div>
           <div className="text-sm text-slate-400 mt-1">{new Date().toLocaleDateString('vi-VN')}</div>
         </div>
@@ -675,7 +700,7 @@ export default function GreenpanDesign_Final() {
       <header className="bg-slate-800 text-white p-4 shadow-md flex justify-between items-center shrink-0 print:hidden">
         <div className="flex items-center gap-3">
           <img src="./logo_app.jpg" alt="Greenpan Design" className="h-10 w-10 object-contain" />
-          <div><h1 className="text-xl font-bold leading-none">Greenpan Design (Wall)</h1></div>
+          <div><h1 className="text-xl font-bold leading-none">Greenpan Design — Tính panel</h1></div>
         </div>
         <div className="flex items-center gap-3">
           {(updateStatus?.event || updateStatus?.appVersion || appVersion) && (
@@ -692,8 +717,8 @@ export default function GreenpanDesign_Final() {
             </div>
           )}
           <div className="flex gap-2">
-            <button className={`px-4 py-1 rounded text-sm ${activeTab === 'input' ? 'bg-blue-600' : 'bg-slate-700'}`} onClick={() => setActiveTab('input')}>Nhập Liệu</button>
-            <button className={`px-4 py-1 rounded text-sm ${activeTab === 'charts' ? 'bg-blue-600' : 'bg-slate-700'}`} onClick={() => setActiveTab('charts')}>Biểu Đồ</button>
+            <button className={`px-4 py-1 rounded text-sm ${activeTab === 'input' ? 'bg-blue-600' : 'bg-slate-700'}`} onClick={() => setActiveTab('input')}>Nhập liệu</button>
+            <button className={`px-4 py-1 rounded text-sm ${activeTab === 'charts' ? 'bg-blue-600' : 'bg-slate-700'}`} onClick={() => setActiveTab('charts')}>Biểu đồ</button>
             <button className={`px-4 py-1 rounded text-sm ${activeTab === 'report' ? 'bg-blue-600' : 'bg-slate-700'}`} onClick={() => setActiveTab('report')}>Báo cáo</button>
           </div>
         </div>
@@ -710,7 +735,7 @@ export default function GreenpanDesign_Final() {
               <h2 className="text-lg font-bold flex items-center gap-2 mb-4 text-blue-700"><Settings size={20} /> 1. Sơ Đồ & Kích Thước</h2>
 
               <div className="mb-4">
-                <label className="block text-xs font-bold text-gray-500 mb-1">Tên Dự Án</label>
+                <label className="block text-xs font-bold text-gray-500 mb-1">Tên dự án</label>
                 <input type="text" name="projectName" value={config.projectName} onChange={handleInputChange} className="w-full border p-2 rounded" />
               </div>
 
@@ -718,15 +743,15 @@ export default function GreenpanDesign_Final() {
                 <div className="flex flex-wrap gap-4 mb-2">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input type="radio" name="panelType" value="external" checked={config.panelType === 'external'} onChange={handleInputChange} />
-                    <span className="text-sm">Vách Ngoài</span>
+                    <span className="text-sm">Vách ngoài</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input type="radio" name="panelType" value="internal" checked={config.panelType === 'internal'} onChange={handleInputChange} />
-                    <span className="text-sm">Vách Trong</span>
+                    <span className="text-sm">Vách trong</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input type="radio" name="panelType" value="ceiling" checked={config.panelType === 'ceiling'} onChange={handleInputChange} />
-                    <span className="text-sm">Tấm Trần</span>
+                    <span className="text-sm">Tấm trần</span>
                   </label>
                 </div>
 
@@ -744,7 +769,7 @@ export default function GreenpanDesign_Final() {
                 )}
 
                 <div className="flex items-center gap-3 pt-2 border-t border-blue-200">
-                  <label className="text-xs font-bold">Giới hạn Độ võng:</label>
+                  <label className="text-xs font-bold">Giới hạn độ võng:</label>
                   <select
                     name="deflectionLimit"
                     value={config.deflectionLimit}
@@ -803,7 +828,7 @@ export default function GreenpanDesign_Final() {
                 </div>
 
                 <div>
-                  <label className="text-sm block font-bold">Độ dày Lõi (mm):</label>
+                  <label className="text-sm block font-bold">Độ dày lõi (mm):</label>
                   <div className="flex flex-wrap gap-2">
                     {[40, 50, 60, 75, 80, 100, 125, 150, 200].map(v => (
                       <button
@@ -820,63 +845,63 @@ export default function GreenpanDesign_Final() {
             </section>
 
             <section className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-              <h2 className="text-lg font-bold flex items-center gap-2 mb-4 text-orange-600"><Thermometer size={20} /> 2. Thông Số Kỹ Thuật</h2>
+              <h2 className="text-lg font-bold flex items-center gap-2 mb-4 text-orange-600"><Thermometer size={20} /> 2. Thông số kỹ thuật</h2>
               <div className="grid grid-cols-2 gap-4">
-                <div><label className="text-xs block">Tôn Ngoài (mm)</label><input type="number" step="0.05" name="skinOut" value={config.skinOut} onChange={handleInputChange} className="w-full border p-2 rounded" /></div>
-                <div><label className="text-xs block">Tôn Trong (mm)</label><input type="number" step="0.05" name="skinIn" value={config.skinIn} onChange={handleInputChange} className="w-full border p-2 rounded" /></div>
+                <div><label className="text-xs block">Tôn ngoài (mm)</label><input type="number" step="0.05" name="skinOut" value={config.skinOut} onChange={handleInputChange} className="w-full border p-2 rounded" /></div>
+                <div><label className="text-xs block">Tôn trong (mm)</label><input type="number" step="0.05" name="skinIn" value={config.skinIn} onChange={handleInputChange} className="w-full border p-2 rounded" /></div>
                 <div><label className="text-xs block font-bold">Bề rộng panel (mm)</label><input type="number" step="10" name="panelWidth" value={config.panelWidth} onChange={handlePanelWidthChange} className="w-full border p-2 rounded" /></div>
-                <div><label className="text-xs block">Nhiệt độ Ngoài (C)</label><input type="number" name="tempOut" value={config.tempOut} onChange={handleInputChange} className="w-full border p-2 rounded" /></div>
-                <div><label className="text-xs block">Nhiệt độ Trong (C)</label><input type="number" name="tempIn" value={config.tempIn} onChange={handleInputChange} className="w-full border p-2 rounded" /></div>
+                <div><label className="text-xs block">Nhiệt độ ngoài (°C)</label><input type="number" name="tempOut" value={config.tempOut} onChange={handleInputChange} className="w-full border p-2 rounded" /></div>
+                <div><label className="text-xs block">Nhiệt độ trong (°C)</label><input type="number" name="tempIn" value={config.tempIn} onChange={handleInputChange} className="w-full border p-2 rounded" /></div>
                 <div><label className="text-xs block">Hệ số nhiệt γT</label><input type="number" step="0.1" name="gammaF_thermal" value={config.gammaF_thermal} onChange={handleInputChange} className="w-full border p-2 rounded" /></div>
-                <div><label className="text-xs block font-bold">Áp lực Gió (kPa)</label><input type="number" step="0.1" name="windPressure" value={config.windPressure} onChange={handleInputChange} className="w-full border p-2 rounded" /></div>
+                <div><label className="text-xs block font-bold">Áp lực gió (kPa)</label><input type="number" step="0.1" name="windPressure" value={config.windPressure} onChange={handleInputChange} className="w-full border p-2 rounded" /></div>
                 <div><label className="text-xs block font-bold text-red-600">Thép Fy (MPa)</label><input type="number" name="steelYield" value={config.steelYield} onChange={handleInputChange} className="w-full border p-2 rounded" /></div>
-                <div><label className="text-xs block">Cường độ Cắt Lõi (MPa)</label><input type="number" step="0.01" name="coreShearStrength" value={config.coreShearStrength} onChange={handleInputChange} className="w-full border p-2 rounded" /></div>
+                <div><label className="text-xs block">Cường độ cắt lõi (MPa)</label><input type="number" step="0.01" name="coreShearStrength" value={config.coreShearStrength} onChange={handleInputChange} className="w-full border p-2 rounded" /></div>
                 <div><label className="text-xs block">Mô đun cắt lõi Gc (MPa)</label><input type="number" step="0.1" name="coreShearModulus" value={config.coreShearModulus} onChange={handleInputChange} className="w-full border p-2 rounded" /></div>
                 <div><label className="text-xs block">Mô đun nén lõi Ec (MPa)</label><input type="number" step="0.1" name="compressiveModulus" value={config.compressiveModulus} onChange={handleInputChange} className="w-full border p-2 rounded" /></div>
-                <div><label className="text-xs block">Hệ số kappa (shear)</label><input type="number" step="0.05" name="kappaShear" value={config.kappaShear} onChange={handleInputChange} className="w-full border p-2 rounded" /></div>
-                <div><label className="text-xs block">Wrinkling mode</label><select name="wrinklingMode" value={config.wrinklingMode} onChange={handleInputChange} className="w-full border p-2 rounded"><option value="declared">declared</option><option value="approx">approx</option><option value="yield-only">yield-only</option></select></div>
+                <div><label className="text-xs block">Hệ số kappa cắt</label><input type="number" step="0.05" name="kappaShear" value={config.kappaShear} onChange={handleInputChange} className="w-full border p-2 rounded" /></div>
+                <div><label className="text-xs block">Chế độ kiểm tra nhăn</label><select name="wrinklingMode" value={config.wrinklingMode} onChange={handleInputChange} className="w-full border p-2 rounded"><option value="declared">Khai báo trực tiếp</option><option value="approx">Xấp xỉ</option><option value="yield-only">Chỉ theo giới hạn chảy</option></select></div>
                 <div>
-                  <label className="text-xs block">Wrinkling stress khai báo (MPa)</label>
+                  <label className="text-xs block">Ứng suất nhăn khai báo (MPa)</label>
                   <input type="number" step="0.1" name="wrinklingStress" value={config.wrinklingStress} onChange={handleInputChange} className="w-full border p-2 rounded" />
                   {config.wrinklingMode === 'declared' && !(Number(config.wrinklingStress) > 0) && (
-                    <p className="text-[11px] text-amber-700 mt-1">Thiếu giá trị wrinkling declared hợp lệ; báo cáo sẽ gắn cờ declared-missing và fallback theo yield-only.</p>
+                    <p className="text-[11px] text-amber-700 mt-1">Thiếu ứng suất nhăn khai báo hợp lệ; báo cáo sẽ gắn cờ thiếu dữ liệu khai báo và tạm chuyển sang kiểm tra theo giới hạn chảy.</p>
                   )}
                 </div>
-                <div><label className="text-xs block">Redistribution mode</label><select name="redistributionMode" value={config.redistributionMode} onChange={handleInputChange} className="w-full border p-2 rounded"><option value="elastic">elastic</option><option value="simplified">simplified</option></select></div>
+                <div><label className="text-xs block">Chế độ phân phối nội lực</label><select name="redistributionMode" value={config.redistributionMode} onChange={handleInputChange} className="w-full border p-2 rounded"><option value="elastic">Đàn hồi</option><option value="simplified">Đơn giản hóa</option></select></div>
                 {config.panelType !== 'ceiling' && (
                   <>
-                    <div><label className="text-xs block">Khả năng Vít (kN)</label><input type="number" step="0.1" name="screwStrength" value={config.screwStrength} onChange={handleInputChange} className="w-full border p-2 rounded" /></div>
-                    <div><label className="text-xs block">Khoảng cách vít (mm)</label><input type="number" step="10" name="screwSpacing" value={config.screwSpacing} onChange={handleInputChange} className="w-full border p-2 rounded" /></div>
+                    <div><label className="text-xs block">Khả năng chịu kéo vít (kN)</label><input type="number" step="0.1" name="screwStrength" value={config.screwStrength} onChange={handleInputChange} className="w-full border p-2 rounded" /></div>
+                    <div><label className="text-xs block">Bước vít (mm)</label><input type="number" step="10" name="screwSpacing" value={config.screwSpacing} onChange={handleInputChange} className="w-full border p-2 rounded" /></div>
                   </>
                 )}
 
                 <div className="col-span-2">
                   <label className="flex items-center gap-4 text-sm mt-2">
-                    <input type="radio" name="windDirection" value="pressure" checked={config.windDirection === 'pressure'} onChange={handleInputChange} /> Gió Đẩy
-                    <input type="radio" name="windDirection" value="suction" checked={config.windDirection === 'suction'} onChange={handleInputChange} /> Gió Hút
+                    <input type="radio" name="windDirection" value="pressure" checked={config.windDirection === 'pressure'} onChange={handleInputChange} /> Gió đẩy
+                    <input type="radio" name="windDirection" value="suction" checked={config.windDirection === 'suction'} onChange={handleInputChange} /> Gió hút
                   </label>
                 </div>
 
                 {config.panelType === 'ceiling' && (
                   <div className="col-span-2 mt-2 bg-emerald-50 p-3 rounded border border-emerald-200 space-y-2">
-                    <div className="text-xs font-bold text-emerald-800">TẢI TRỌNG TRẦN</div>
+                    <div className="text-xs font-bold text-emerald-800">TẢI TRỌNG TÁC DỤNG LÊN TRẦN</div>
 
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-xs block font-bold">Dead load</label>
+                        <label className="text-xs block font-bold">Tĩnh tải</label>
                         <select
                           name="deadLoadMode"
                           value={config.deadLoadMode}
                           onChange={handleInputChange}
                           className="w-full border rounded p-1 text-sm"
                         >
-                          <option value="auto">Auto (tự trọng panel)</option>
-                          <option value="manual">Manual (kPa)</option>
+                          <option value="auto">Tự động (tự trọng panel)</option>
+                          <option value="manual">Nhập tay (kPa)</option>
                         </select>
                       </div>
 
                       <div>
-                        <label className="text-xs block font-bold">Live load (kPa)</label>
+                        <label className="text-xs block font-bold">Hoạt tải (kPa)</label>
                         <input
                           type="number"
                           step="0.01"
@@ -889,7 +914,7 @@ export default function GreenpanDesign_Final() {
 
                       {config.deadLoadMode === 'manual' && (
                         <div className="col-span-2">
-                          <label className="text-xs block font-bold">Dead load manual (kPa)</label>
+                          <label className="text-xs block font-bold">Tĩnh tải nhập tay (kPa)</label>
                           <input
                             type="number"
                             step="0.01"
@@ -903,7 +928,7 @@ export default function GreenpanDesign_Final() {
 
                       {/* ✅ NEW: Creep factor cho trần */}
                       <div className="col-span-2">
-                        <label className="text-xs block font-bold">Hệ số từ biến φ (creep)</label>
+                        <label className="text-xs block font-bold">Hệ số từ biến φ</label>
                         <input
                           type="number"
                           step="0.1"
@@ -934,7 +959,7 @@ export default function GreenpanDesign_Final() {
 
                     <div className="border-t border-emerald-200 pt-2">
                       <div className="flex items-center justify-between">
-                        <div className="text-xs font-bold text-emerald-800">Tải treo (Point loads) — X toàn dầm</div>
+                        <div className="text-xs font-bold text-emerald-800">Tải treo (tải tập trung) — tọa độ X theo toàn dầm</div>
                         <button
                           type="button"
                           onClick={() => setConfig(prev => ({
@@ -987,7 +1012,7 @@ export default function GreenpanDesign_Final() {
                             </div>
 
                             <div className="col-span-2">
-                              <label className="text-[10px] block text-gray-600">Loại tải</label>
+                              <label className="text-[10px] block text-gray-600">Nhóm tải</label>
                               <select
                                 value={pl.type || 'permanent'}
                                 onChange={(e) => {
@@ -1000,8 +1025,8 @@ export default function GreenpanDesign_Final() {
                                 }}
                                 className="w-full border p-1 rounded text-sm"
                               >
-                                <option value="permanent">G (lâu dài)</option>
-                                <option value="variable">Q (tạm thời)</option>
+                                <option value="permanent">G (dài hạn)</option>
+                                <option value="variable">Q (ngắn hạn)</option>
                               </select>
                             </div>
 
@@ -1040,7 +1065,7 @@ export default function GreenpanDesign_Final() {
                       </div>
 
                       <div className="text-[10px] text-gray-600 mt-2">
-                        Gợi ý test: span 3m+3m, X=1.5m P=0.30kN và X=4.5m P=0.30kN (shear sẽ nhảy 0.30kN tại đúng vị trí).
+                        Ví dụ kiểm tra nhanh: nhịp 3m + 3m, X=1.5m P=0.30kN và X=4.5m P=0.30kN (biểu đồ lực cắt sẽ nhảy 0.30kN đúng tại vị trí đặt tải).
                       </div>
                     </div>
                   </div>
@@ -1048,7 +1073,7 @@ export default function GreenpanDesign_Final() {
 
                 {config.panelType === 'internal' && config.internalWallType === 'cold_storage' && (
                   <div className="col-span-2 mt-2 bg-blue-50 p-2 rounded border border-blue-200">
-                    <label className="text-xs block mb-1 font-bold text-blue-700 flex items-center gap-1"><TrendingUp size={12} /> Hệ số từ biến (Creep Factor)</label>
+                    <label className="text-xs block mb-1 font-bold text-blue-700 flex items-center gap-1"><TrendingUp size={12} /> Hệ số từ biến</label>
                     <div className="space-y-2">
                       <div className="flex gap-2 items-center">
                         <input
@@ -1084,7 +1109,7 @@ export default function GreenpanDesign_Final() {
         <div id="tab-charts" className={activeTab === 'charts' ? 'block w-full space-y-6' : 'hidden'}>
           <div className="bg-white p-4 rounded shadow border border-gray-200">
             <h3 className="font-bold text-center mb-2">
-              {config.panelType === 'ceiling' ? 'Sơ đồ tính trần (X toàn dầm)' : 'Sơ đồ tính (Load + Gối)'}
+              {config.panelType === 'ceiling' ? 'Sơ đồ tính trần (X toàn dầm)' : 'Sơ đồ tính (tải + gối)'}
             </h3>
 
             {config.panelType === 'ceiling' ? (
@@ -1099,7 +1124,7 @@ export default function GreenpanDesign_Final() {
           </div>
 
           <div className="bg-white p-4 rounded shadow border border-gray-200">
-            <h3 className="font-bold text-center mb-2">Biểu đồ Chuyển vị</h3>
+            <h3 className="font-bold text-center mb-2">Biểu đồ chuyển vị</h3>
             <div className="h-72">
               <ResponsiveContainer>
                 <ComposedChart data={results.chartData}>
@@ -1167,7 +1192,7 @@ export default function GreenpanDesign_Final() {
           </div>
 
           <div className="bg-white p-4 rounded shadow border border-gray-200">
-            <h3 className="font-bold text-center mb-2">Biểu đồ Mô-men Uốn</h3>
+            <h3 className="font-bold text-center mb-2">Biểu đồ mô-men uốn</h3>
             <div className="h-64">
               <ResponsiveContainer>
                 <ComposedChart data={results.chartData}>
@@ -1183,7 +1208,7 @@ export default function GreenpanDesign_Final() {
           </div>
 
           <div className="bg-white p-4 rounded shadow border border-gray-200">
-            <h3 className="font-bold text-center mb-2">Biểu đồ Lực Cắt</h3>
+            <h3 className="font-bold text-center mb-2">Biểu đồ lực cắt</h3>
             <div className="h-64">
               <ResponsiveContainer>
                 <AreaChart data={results.chartData}>
@@ -1199,7 +1224,7 @@ export default function GreenpanDesign_Final() {
           </div>
 
           <div className="bg-white p-4 rounded shadow border border-gray-200">
-            <h3 className="font-bold text-center mb-2">Phản Lực Gối</h3>
+            <h3 className="font-bold text-center mb-2">Biểu đồ phản lực gối</h3>
             <div className="mb-3">
               <ReactionLegend />
             </div>
@@ -1244,7 +1269,7 @@ export default function GreenpanDesign_Final() {
               </h3>
 
               <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-xs">
-                <div className="flex justify-between"><span>Loại Panel:</span> <b>{config.panelType === 'external' ? 'Vách Ngoài' : config.panelType === 'internal' ? 'Vách Trong' : 'Tấm Trần'}</b></div>
+                <div className="flex justify-between"><span>Loại panel:</span> <b>{config.panelType === 'external' ? 'Vách ngoài' : config.panelType === 'internal' ? 'Vách trong' : 'Tấm trần'}</b></div>
                 <div className="flex justify-between"><span>Độ dày lõi:</span> <b>{config.coreThickness} mm</b></div>
                 <div className="flex justify-between"><span>Tôn mặt (Ngoài/Trong):</span> <b>{config.skinOut} / {config.skinIn} mm</b></div>
                 <div className="flex justify-between"><span>Bề rộng panel:</span> <b>{config.panelWidth} mm</b></div>
@@ -1254,9 +1279,9 @@ export default function GreenpanDesign_Final() {
                 <div className="flex justify-between"><span>Mô đun cắt lõi Gc:</span> <b>{config.coreShearModulus} MPa</b></div>
                 <div className="flex justify-between"><span>Mô đun nén lõi Ec:</span> <b>{config.compressiveModulus} MPa</b></div>
                 <div className="flex justify-between"><span>Hệ số kappa:</span> <b>{config.kappaShear}</b></div>
-                <div className="flex justify-between"><span>Wrinkling mode:</span> <b>{results.wrinklingMode}</b></div>
-                <div className="flex justify-between"><span>Redistribution mode:</span> <b>{results.redistributionMode}</b></div>
-                <div className="flex justify-between"><span>Tải trọng Gió/Áp suất:</span> <b>{config.windPressure} kPa ({config.windDirection})</b></div>
+                <div className="flex justify-between"><span>Chế độ kiểm tra nhăn:</span> <b>{getModeLabel(results.wrinklingMode, WRINKLING_MODE_LABELS)}</b></div>
+                <div className="flex justify-between"><span>Chế độ phân phối nội lực:</span> <b>{getModeLabel(results.redistributionMode, REDISTRIBUTION_MODE_LABELS)}</b></div>
+                <div className="flex justify-between"><span>Tải trọng gió/áp suất:</span> <b>{config.windPressure} kPa ({getModeLabel(config.windDirection, WIND_DIRECTION_LABELS)})</b></div>
                 <div className="flex justify-between"><span>Chênh lệch nhiệt độ:</span> <b>{Math.abs(config.tempOut - config.tempIn)} °C</b></div>
                 <div className="flex justify-between"><span>Hệ số nhiệt γT:</span> <b>{config.gammaF_thermal}</b></div>
                 <div className="flex justify-between"><span>Sơ đồ nhịp:</span> <b>{config.spans.join(' + ')} m</b></div>
@@ -1349,11 +1374,11 @@ export default function GreenpanDesign_Final() {
                   </tbody>
                 </table>
 
-                <h4 className="font-bold text-blue-800 mt-3">2.3 Tổ hợp tải trọng (Load Combinations)</h4>
+                <h4 className="font-bold text-blue-800 mt-3">2.3 Tổ hợp tải trọng</h4>
                 <table className="w-full text-[10px] border-collapse border border-gray-300 mt-1 font-mono">
                   <thead className="bg-gray-100 font-bold">
                     <tr>
-                      <th className="border p-1 text-left">Loại tải</th>
+                      <th className="border p-1 text-left">Nhóm tải</th>
                       <th className="border p-1 text-center">Giá trị</th>
                       <th className="border p-1 text-center">Đơn vị</th>
                       <th className="border p-1 text-center">γ (ULS)</th>
@@ -1402,11 +1427,11 @@ export default function GreenpanDesign_Final() {
                   <p><strong>Mô-men nhiệt (ULS):</strong> M<sub>t</sub> = EI·α·ΔT·γ<sub>T</sub>/e = {(results.EI / 1e9).toFixed(2)}×10⁹ × 1.2×10⁻⁵ × {Math.abs(results.dT_deg)} × {results.gammaThermal} / {results.e.toFixed(1)} = <b>{results.Mt_ULS_kNm.toFixed(3)} kNm/m</b></p>
                 </div>
 
-                <h4 className="font-bold text-blue-800 mt-3">2.4 Kiểm tra ứng suất uốn (Bending Check - ULS)</h4>
+                <h4 className="font-bold text-blue-800 mt-3">2.4 Kiểm tra ứng suất uốn (ULS)</h4>
                 <div className="p-2 bg-gray-50 rounded border border-gray-200 mt-1 text-[10px] font-mono space-y-1">
-                  <p><strong>Wrinkling mode:</strong> {results.wrinklingMode} {results.sigma_w_source ? `(source: ${results.sigma_w_source})` : ''}</p>
+                  <p><strong>Chế độ kiểm tra nhăn:</strong> {getModeLabel(results.wrinklingMode, WRINKLING_MODE_LABELS)} {results.sigma_w_source ? `(nguồn: ${getModeLabel(results.sigma_w_source, WRINKLING_SOURCE_LABELS)})` : ''}</p>
                   {results.wrinklingDeclaredMissing && (
-                    <p className="text-amber-700"><strong>Cảnh báo input:</strong> mode declared nhưng thiếu/0 wrinkling stress; check hiện đang fallback theo <b>{results.wrinklingFallbackMode}</b>.</p>
+                    <p className="text-amber-700"><strong>Cảnh báo dữ liệu đầu vào:</strong> đã chọn chế độ khai báo trực tiếp nhưng thiếu ứng suất nhăn hợp lệ; hệ thống đang tạm kiểm tra theo <b>{getModeLabel(results.wrinklingFallbackMode, WRINKLING_MODE_LABELS)}</b>.</p>
                   )}
                   <p><strong>Ứng suất nhăn xấp xỉ:</strong> σ<sub>w,approx</sub> = 0.5√(E<sub>f</sub>·E<sub>c</sub>·G<sub>c</sub>) = 0.5×√(210000×{results.compressiveModulus}×{config.coreShearModulus}) = <b>{results.sigma_w_approx.toFixed(1)} MPa</b></p>
                   <p><strong>Ứng suất nhăn khai báo:</strong> σ<sub>w,declared</sub> = <b>{results.sigma_w_declared.toFixed(1)} MPa</b></p>
@@ -1418,28 +1443,28 @@ export default function GreenpanDesign_Final() {
                   <p><strong>Ứng suất tính toán (Gối):</strong> σ<sub>Ed</sub> = <b>{results.stress_support.toFixed(1)} MPa</b> → Tỷ lệ = <b>{(results.ratios.support * 100).toFixed(0)}%</b></p>
                 </div>
 
-                <h4 className="font-bold text-blue-800 mt-3">2.5 Kiểm tra lực cắt (Shear Check - ULS)</h4>
+                <h4 className="font-bold text-blue-800 mt-3">2.5 Kiểm tra lực cắt (ULS)</h4>
                 <div className="p-2 bg-gray-50 rounded border border-gray-200 mt-1 text-[10px] font-mono space-y-1">
-                  <p><strong>Redistribution mode:</strong> {results.redistributionMode} {results.redistributionEnabled ? '(hinge-based simplified redistribution enabled)' : '(pure elastic envelope)'}</p>
+                  <p><strong>Chế độ phân phối nội lực:</strong> {getModeLabel(results.redistributionMode, REDISTRIBUTION_MODE_LABELS)} {results.redistributionEnabled ? '(đã bật tái phân phối nội lực theo cơ chế khớp)' : '(chỉ dùng bao nội lực đàn hồi)'}</p>
                   <p><strong>Khả năng chịu cắt:</strong> V<sub>Rd</sub> = f<sub>Cv</sub>·A<sub>c</sub>/γ<sub>M</sub> = {config.coreShearStrength}×{results.Ac.toFixed(0)}/1.25 = <b>{(results.V_Rd / 1000).toFixed(2)} kN/m</b></p>
                   <p><strong>Lực cắt tính toán:</strong> V<sub>Ed,max</sub> = <b>{(results.maxShear / 1000).toFixed(2)} kN/m</b></p>
                   <p><strong>Tỷ lệ:</strong> V<sub>Ed</sub>/V<sub>Rd</sub> = {(results.maxShear / 1000).toFixed(2)}/{(results.V_Rd / 1000).toFixed(2)} = <b>{(results.ratios.shear * 100).toFixed(0)}%</b></p>
                 </div>
 
-                <h4 className="font-bold text-blue-800 mt-3">2.6 Kiểm tra độ võng (Deflection Check - SLS)</h4>
+                <h4 className="font-bold text-blue-800 mt-3">2.6 Kiểm tra độ võng (SLS)</h4>
                 <div className="p-2 bg-gray-50 rounded border border-gray-200 mt-1 text-[10px] font-mono space-y-1">
                   <p><strong>Giới hạn:</strong> w<sub>limit</sub> = L/{results.limitDenom} = {(Math.max(...config.spans) * 1000).toFixed(0)}/{results.limitDenom} = <b>{results.w_limit.toFixed(1)} mm</b></p>
                   <p><strong>Độ võng tính toán:</strong> w<sub>total</sub> = w<sub>mech</sub> + w<sub>thermal</sub> + w<sub>creep</sub> = <b>{results.maxDeflection.toFixed(1)} mm</b></p>
                   <p><strong>Tỷ lệ:</strong> w<sub>total</sub>/w<sub>limit</sub> = {results.maxDeflection.toFixed(1)}/{results.w_limit.toFixed(1)} = <b>{(results.ratios.deflection * 100).toFixed(0)}%</b></p>
                 </div>
 
-                <h4 className="font-bold text-blue-800 mt-3">2.7 Governing cases</h4>
+                <h4 className="font-bold text-blue-800 mt-3">2.7 Trường hợp chi phối</h4>
                 <div className="p-2 bg-amber-50 rounded border border-amber-200 mt-1 text-[10px] font-mono space-y-1">
-                  <p><strong>Moment:</strong> {results.governingCases?.moment?.label} — {(results.governingCases?.moment?.ratio * 100).toFixed(0)}%</p>
-                  <p><strong>Shear:</strong> {results.governingCases?.shear?.label} — {(results.governingCases?.shear?.ratio * 100).toFixed(0)}%</p>
-                  <p><strong>Deflection:</strong> {results.governingCases?.deflection?.label} — {(results.governingCases?.deflection?.ratio * 100).toFixed(0)}%</p>
-                  <p><strong>Uplift:</strong> {results.governingCases?.uplift?.label} — {(results.governingCases?.uplift?.ratio * 100).toFixed(0)}%</p>
-                  <p><strong>Overall:</strong> {results.governingCases?.overall?.label} — {(results.governingCases?.overall?.ratio * 100).toFixed(0)}%</p>
+                  <p><strong>Mô-men:</strong> {results.governingCases?.moment?.label} — {(results.governingCases?.moment?.ratio * 100).toFixed(0)}%</p>
+                  <p><strong>Lực cắt:</strong> {results.governingCases?.shear?.label} — {(results.governingCases?.shear?.ratio * 100).toFixed(0)}%</p>
+                  <p><strong>Độ võng:</strong> {results.governingCases?.deflection?.label} — {(results.governingCases?.deflection?.ratio * 100).toFixed(0)}%</p>
+                  <p><strong>Chống nhổ:</strong> {results.governingCases?.uplift?.label} — {(results.governingCases?.uplift?.ratio * 100).toFixed(0)}%</p>
+                  <p><strong>Tổng thể:</strong> {results.governingCases?.overall?.label} — {(results.governingCases?.overall?.ratio * 100).toFixed(0)}%</p>
                 </div>
 
                 <h4 className="font-bold text-blue-800 mt-3">2.8 Kết quả tổng hợp</h4>
@@ -1476,7 +1501,7 @@ export default function GreenpanDesign_Final() {
                       <td className={`border p-2 text-center font-bold ${results.ratios.shear <= 1 ? 'text-green-600' : 'text-red-600'}`}>{results.ratios.shear <= 1 ? 'ĐẠT' : 'KHÔNG ĐẠT'}</td>
                     </tr>
                     <tr>
-                      <td className="border p-2">Phản Lực Gối (Max)</td>
+                      <td className="border p-2">Biểu đồ phản lực gối (Max)</td>
                       <td className="border p-2 text-center">{(results.maxReaction / 1000).toFixed(2)} kN</td>
                       <td className="border p-2 text-center">{(results.F_Rd_Worst / 1000).toFixed(2)} kN</td>
                       <td className={`border p-2 text-center font-bold ${results.ratios.crushing > 1 ? 'text-red-600' : 'text-green-600'}`}>{(results.ratios.crushing * 100).toFixed(0)}%</td>
@@ -1512,7 +1537,7 @@ export default function GreenpanDesign_Final() {
                 {/* ✅ Sơ đồ tính trong báo cáo */}
                 <div className="border border-gray-100 rounded p-2 avoid-break">
                   <h4 className="text-xs font-bold text-center mb-1">
-                    {config.panelType === 'ceiling' ? 'Sơ đồ tính trần (X toàn dầm)' : 'Sơ đồ tính (Load + Gối)'}
+                    {config.panelType === 'ceiling' ? 'Sơ đồ tính trần (X toàn dầm)' : 'Sơ đồ tính (tải + gối)'}
                   </h4>
 
                   {config.panelType === 'ceiling' ? (
@@ -1528,7 +1553,7 @@ export default function GreenpanDesign_Final() {
 
                 {/* REPORT: DEFLECTION CHART */}
                 <div className="h-48 report-chart border border-gray-100 rounded p-2 avoid-break">
-                  <h4 className="text-xs font-bold text-center mb-1">Chuyển vị (Deflection) [mm]</h4>
+                  <h4 className="text-xs font-bold text-center mb-1">Chuyển vị [mm]</h4>
                   <ResponsiveContainer width={printMode ? 700 : '100%'} height="100%">
                     <ComposedChart
                       data={results.chartData}
@@ -1571,7 +1596,7 @@ export default function GreenpanDesign_Final() {
                             stroke="#94a3b8"
                             strokeDasharray="4 4"
                             label={{
-                              value: `Max: ${results.extrema.deflectionTotal.max.value.toFixed(1)} mm`,
+                              value: `Lớn nhất: ${results.extrema.deflectionTotal.max.value.toFixed(1)} mm`,
                               position: 'insideTop',
                               fontSize: 10,
                               fill: '#0f172a',
@@ -1583,7 +1608,7 @@ export default function GreenpanDesign_Final() {
                             stroke="#94a3b8"
                             strokeDasharray="4 4"
                             label={{
-                              value: `Min: ${results.extrema.deflectionTotal.min.value.toFixed(1)} mm`,
+                              value: `Nhỏ nhất: ${results.extrema.deflectionTotal.min.value.toFixed(1)} mm`,
                               position: 'insideBottom',
                               fontSize: 10,
                               fill: '#0f172a',
@@ -1670,7 +1695,7 @@ export default function GreenpanDesign_Final() {
 
                 {/* REPORT: MOMENT CHART */}
                 <div className="h-48 report-chart border border-gray-100 rounded p-2 avoid-break">
-                  <h4 className="text-xs font-bold text-center mb-1">Mô-men Uốn (Moment) [kNm]</h4>
+                  <h4 className="text-xs font-bold text-center mb-1">Mô-men uốn [kNm]</h4>
                   <ResponsiveContainer width={printMode ? 700 : '100%'} height="100%">
                     <ComposedChart
                       data={results.chartData}
@@ -1713,7 +1738,7 @@ export default function GreenpanDesign_Final() {
                             stroke="#94a3b8"
                             strokeDasharray="4 4"
                             label={{
-                              value: `Max: ${results.extrema.moment.max.value.toFixed(2)} kNm`,
+                              value: `Lớn nhất: ${results.extrema.moment.max.value.toFixed(2)} kNm`,
                               position: 'insideTop',
                               fontSize: 10,
                               fill: '#0f172a',
@@ -1725,7 +1750,7 @@ export default function GreenpanDesign_Final() {
                             stroke="#94a3b8"
                             strokeDasharray="4 4"
                             label={{
-                              value: `Min: ${results.extrema.moment.min.value.toFixed(2)} kNm`,
+                              value: `Nhỏ nhất: ${results.extrema.moment.min.value.toFixed(2)} kNm`,
                               position: 'insideBottom',
                               fontSize: 10,
                               fill: '#0f172a',
@@ -1752,7 +1777,7 @@ export default function GreenpanDesign_Final() {
 
                 {/* REPORT: SHEAR CHART */}
                 <div className="h-48 report-chart border border-gray-100 rounded p-2 avoid-break">
-                  <h4 className="text-xs font-bold text-center mb-1">Lực Cắt (Shear) [kN]</h4>
+                  <h4 className="text-xs font-bold text-center mb-1">Lực cắt [kN]</h4>
                   <ResponsiveContainer width={printMode ? 700 : '100%'} height="100%">
                     <AreaChart
                       data={results.chartData}
@@ -1795,7 +1820,7 @@ export default function GreenpanDesign_Final() {
                             stroke="#94a3b8"
                             strokeDasharray="4 4"
                             label={{
-                              value: `Max: ${results.extrema.shear.max.value.toFixed(2)} kN`,
+                              value: `Lớn nhất: ${results.extrema.shear.max.value.toFixed(2)} kN`,
                               position: 'insideTop',
                               fontSize: 10,
                               fill: '#0f172a',
@@ -1807,7 +1832,7 @@ export default function GreenpanDesign_Final() {
                             stroke="#94a3b8"
                             strokeDasharray="4 4"
                             label={{
-                              value: `Min: ${results.extrema.shear.min.value.toFixed(2)} kN`,
+                              value: `Nhỏ nhất: ${results.extrema.shear.min.value.toFixed(2)} kN`,
                               position: 'insideBottom',
                               fontSize: 10,
                               fill: '#0f172a',
@@ -1834,7 +1859,7 @@ export default function GreenpanDesign_Final() {
 
                 {/* REPORT: REACTION CHART */}
                 <div className="h-48 report-chart border border-gray-100 rounded p-2 avoid-break">
-                  <h4 className="text-xs font-bold text-center mb-1">Phản Lực Gối (Reaction) [kN]</h4>
+                  <h4 className="text-xs font-bold text-center mb-1">Biểu đồ phản lực gối (Reaction) [kN]</h4>
                   <div className="mb-2">
                     <ReactionLegend />
                   </div>
@@ -1890,12 +1915,12 @@ export default function GreenpanDesign_Final() {
                 onClick={handlePrint}
                 className="bg-red-600 text-white px-6 py-2 rounded-lg font-bold shadow hover:bg-red-700 flex items-center gap-2 transition-colors"
               >
-                <Printer size={20} />Xuất PDF / Lưu Báo Cáo
+                <Printer size={20} />Xuất PDF / Lưu báo cáo
               </button>
             </div>
 
             <div className="mt-8 text-[10px] text-center text-slate-400 italic">
-              Báo cáo được tạo tự động bởi phần mềm Greenpan Design
+              Báo cáo được tạo tự động bởi phần mềm Greenpan Design.
             </div>
           </div>
         </div>

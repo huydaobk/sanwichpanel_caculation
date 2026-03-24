@@ -167,22 +167,34 @@ export const buildCapacityChecks = ({
     (upliftEnabled && ratios.uplift > 1)
   ) status = 'fail';
 
+  const wrinklingModeLabel = wrinklingMode === 'declared'
+    ? 'khai báo trực tiếp'
+    : wrinklingMode === 'yield-only'
+      ? 'chỉ theo giới hạn chảy'
+      : 'xấp xỉ';
+  const wrinklingFallbackLabel = wrinklingFallbackMode === 'declared'
+    ? 'khai báo trực tiếp'
+    : wrinklingFallbackMode === 'yield-only'
+      ? 'chỉ theo giới hạn chảy'
+      : 'xấp xỉ';
+  const redistributionModeLabel = redistributionMode === 'simplified' ? 'đơn giản hóa' : 'đàn hồi';
+
   const advice = [];
-  advice.push(`Wrinkling mode: ${wrinklingMode || 'approx'}; redistribution mode: ${redistributionMode || 'elastic'}.`);
+  advice.push(`Chế độ kiểm tra nhăn: ${wrinklingModeLabel}; chế độ phân phối nội lực: ${redistributionModeLabel}.`);
   if (wrinklingDeclaredMissing) {
-    advice.push(`Thiếu wrinkling stress khai báo hợp lệ cho mode declared; đang fallback theo ${wrinklingFallbackMode}.`);
+    advice.push(`Thiếu ứng suất nhăn khai báo hợp lệ cho chế độ khai báo trực tiếp; hệ thống đang tự chuyển sang ${wrinklingFallbackLabel}.`);
   }
   if (hingeNoteList.length > 0) {
     advice.push(`Đã kích hoạt tái phân phối nội lực (khớp) tại gối: ${hingeNoteList.join(', ')} (ULS).`);
   }
   if (creepMode !== 'none') {
     const creepNote = phiBending > 0 ? `φ = ${phiShear}, φb = ${phiBending}` : `φ = ${phiShear}`;
-    advice.push(`SLS đã xét từ biến lõi (${creepNote}). Mode: ${creepMode === 'all' ? 'toàn tải SLS' : 'chỉ tải lâu dài (dead + tải treo)'}.`);
+    advice.push(`SLS đã xét từ biến lõi (${creepNote}). Phạm vi xét: ${creepMode === 'all' ? 'toàn bộ tải SLS' : 'chỉ tải lâu dài (tĩnh tải + tải treo)'}.`);
   }
-  advice.push(`Governing overall: ${governingCases.overall.label} (${(governingCases.overall.ratio * 100).toFixed(0)}%).`);
+  advice.push(`Trường hợp chi phối toàn bộ: ${governingCases.overall.label} (${(governingCases.overall.ratio * 100).toFixed(0)}%).`);
   if (ratios.bending > 1) advice.push('Nguy cơ nhăn tôn/chảy thép: Tăng độ dày tôn hoặc giảm nhịp.');
   if (ratios.support > 1) advice.push('Ứng suất tại gối cao: tăng độ dày tôn hoặc tăng bề rộng gối.');
-  if (ratios.shear > 1) advice.push('Lực cắt quá lớn: tăng cường độ cắt của lõi hoặc tăng độ dày Panel.');
+  if (ratios.shear > 1) advice.push('Lực cắt quá lớn: tăng cường độ cắt của lõi hoặc tăng độ dày panel.');
   reactionData.forEach((s) => {
     if (s.status === 'fail') advice.push(`Gối ${s.id} bị quá tải ép dập. Cần tăng bề rộng lên > ${Math.ceil(s.reqWidth)}mm.`);
     if (upliftEnabled && s.upliftStatus === 'fail') advice.push(`Gối ${s.id} bị nhổ (uplift). Cần tăng số lượng/khoảng cách vít hoặc tăng khả năng vít.`);
