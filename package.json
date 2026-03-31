@@ -9,7 +9,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:regression": "node --test tests/regression/*.test.mjs",
+    "test:regression": "node tests/regression/run-all.mjs",
     "ci:check": "npm run build && npm run test:regression",
     "ci:check:full": "npm run lint && npm run build && npm run test:regression",
     "dist": "npm run build && electron-builder",
