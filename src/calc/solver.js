@@ -45,6 +45,15 @@ export const consistentLoadPoint = (PDown, a, L) => {
 
 export const consistentLoadUDL = (qDown, L) => [-qDown * L / 2, -qDown * L * L / 12, -qDown * L / 2, qDown * L * L / 12];
 
+export const normalizeSpanDistributedLoads = (spansM = [], qDown = 0) => {
+  const nSpan = Array.isArray(spansM) ? spansM.length : 0;
+  if (Array.isArray(qDown)) {
+    return Array.from({ length: nSpan }, (_, idx) => Number(qDown[idx]) || 0);
+  }
+  const qScalar = Number(qDown) || 0;
+  return Array.from({ length: nSpan }, () => qScalar);
+};
+
 export const timoshenkoElementK = (EI, GA, L, kappa = 1.0) => {
   const GAeff = Math.max(GA, 1e-9);
   const psi = (12 * EI) / (kappa * GAeff * L * L);
@@ -109,9 +118,10 @@ export const solveLinear = (Ain, bin) => {
   return x;
 };
 
-export const solveContinuousBeam = ({ spansM, qDown, EI, GA, hinges, pointLoads, thermalMoment = 0, kappaShear = 1.0 }) => {
+export const solveContinuousBeam = ({ spansM, qDown, EI, GA, hinges, pointLoads, thermalMoment = 0, kappaShear = 1.0, supportNodes = null }) => {
   const nSpan = spansM.length;
   const nNode = nSpan + 1;
+  const qDownBySpan = normalizeSpanDistributedLoads(spansM, qDown);
 
   const vDof = Array.from({ length: nNode }, (_, i) => i);
   let next = nNode;
@@ -153,7 +163,8 @@ export const solveContinuousBeam = ({ spansM, qDown, EI, GA, hinges, pointLoads,
     dof[3] = (j !== 0 && j !== nNode - 1 && hinges?.[j]) ? thLeft[j] : thShared[j];
 
     const ke = timoshenkoElementK(EI, GA, L, kappaShear);
-    const fe = consistentLoadUDL(qDown, L);
+    const qDownElem = qDownBySpan[e] || 0;
+    const fe = consistentLoadUDL(qDownElem, L);
     const feTemp = [0, -thermalMoment, 0, thermalMoment];
 
     const x0 = spansM.slice(0, e).reduce((s, v) => s + (Number(v) || 0), 0) * 1000;
@@ -164,9 +175,17 @@ export const solveContinuousBeam = ({ spansM, qDown, EI, GA, hinges, pointLoads,
       const xg = Number(pl.x_mm);
       const Pn = Number(pl.P_N);
       if (!Number.isFinite(xg) || !Number.isFinite(Pn)) continue;
-      if (xg < x0 - 1e-9 || xg > x1 + 1e-9) continue;
 
-      const a = xg - x0;
+      const isAtLeftNode = Math.abs(xg - x0) <= 1e-9;
+      const isAtRightNode = Math.abs(xg - x1) <= 1e-9;
+      const isStrictlyInside = xg > x0 + 1e-9 && xg < x1 - 1e-9;
+      const belongsToElement = isStrictlyInside
+        || (isAtLeftNode && e === 0)
+        || (isAtRightNode);
+
+      if (!belongsToElement) continue;
+
+      const a = isAtLeftNode ? 0 : (isAtRightNode ? L : (xg - x0));
       const fep = consistentLoadPoint(Pn, a, L);
       fePoint = fePoint.map((v, k) => v + fep[k]);
     }
@@ -178,13 +197,20 @@ export const solveContinuousBeam = ({ spansM, qDown, EI, GA, hinges, pointLoads,
       for (let b = 0; b < 4; b++) addK(dof[a], dof[b], ke[a][b]);
     }
 
-    elem.push({ e, i, j, L, dof, ke, fe: feTotal, qDown });
+    elem.push({ e, i, j, L, dof, ke, fe: feTotal, qDown: qDownElem });
   }
 
-  const constrained = vDof.slice();
+  const normalizedSupportNodes = Array.isArray(supportNodes) && supportNodes.length > 0
+    ? [...new Set(supportNodes
+      .map((node) => Number(node))
+      .filter((node) => Number.isInteger(node) && node >= 0 && node < nNode))]
+    : vDof.map((_, idx) => idx);
+
+  const constrained = normalizedSupportNodes.map((nodeIdx) => vDof[nodeIdx]);
+  const constrainedSet = new Set(constrained);
   const free = [];
   for (let d = 0; d < ndof; d++) {
-    if (!constrained.includes(d)) free.push(d);
+    if (!constrainedSet.has(d)) free.push(d);
   }
 
   const Kff = free.map((r) => free.map((c) => K[r][c]));
@@ -223,7 +249,7 @@ export const beamShapeW = (L, x, v1, th1, v2, th2) => {
   return N1 * v1 + N2 * th1 + N3 * v2 + N4 * th2;
 };
 
-export const solveBeamWithRedistribution = ({ spansM, mechanicalCases, EI, GA_inst, pointLoads, nNode, M_Rd, solULS_Temp, creepMode, EI_long, GA_long, qDead_kPa, qDead_line, pointLoadsPermanent, kappaShear = 1.0, redistribution = DEFAULT_REDISTRIBUTION }) => {
+export const solveBeamWithRedistribution = ({ spansM, mechanicalCases, EI, GA_inst, nNode, M_Rd, solULS_Temp, creepMode, EI_long, GA_long, qDead_kPa, qDead_line, pointLoadsPermanent, kappaShear = 1.0, redistribution = DEFAULT_REDISTRIBUTION }) => {
   const redistributionConfig = normalizeRedistribution(redistribution);
   const emptySol = { elementForces: [], reactions: new Array(nNode).fill(0), d: [] };
 

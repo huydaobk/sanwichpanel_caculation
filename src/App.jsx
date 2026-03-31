@@ -1,10 +1,19 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
+import { APP_DISPLAY_NAME, APP_VERSION, buildReleaseStamp, resolveReleaseChannel, resolveRuntimeAppVersion } from './releaseMeta';
 import {
   SECTION_CONSTANTS,
   DEFAULT_REDISTRIBUTION_MODE,
   DEFAULT_WRINKLING_MODE,
-  buildSectionProperties,
   runPanelAnalysis,
+  buildCompareExecutiveSummary,
+  buildResultPackage,
+  buildAppSnapshotPackage,
+  buildExportFileName,
+  APP_SNAPSHOT_KIND,
+  CAPACITY_CHECK_KEYS,
+  CAPACITY_CHECK_LABELS,
+  CAPACITY_GOVERNING_CASE_KEYS,
+  CAPACITY_GOVERNING_CASE_LABELS,
 } from './calc';
 import {
   ComposedChart, Line, AreaChart, Area, BarChart, Bar,
@@ -12,20 +21,20 @@ import {
   ReferenceLine, Cell
 } from 'recharts';
 import {
-  Settings, Thermometer, TrendingUp, AlertCircle, Printer, BookOpen, Activity, Info
+  Settings, Thermometer, TrendingUp, AlertCircle, Printer, BookOpen, Activity, Info, FileJson
 } from 'lucide-react';
 
 const WRINKLING_MODE_LABELS = {
   declared: 'Khai báo trực tiếp',
-  approx: 'Xấp xỉ',
-  'yield-only': 'Chỉ theo giới hạn chảy',
+  approx: 'Xấp xỉ kỹ thuật',
+  'yield-only': 'Theo giới hạn chảy',
 };
 
 const WRINKLING_SOURCE_LABELS = {
   declared: 'Khai báo trực tiếp',
-  approx: 'Xấp xỉ',
-  'yield-only': 'Chỉ theo giới hạn chảy',
-  'declared-missing': 'Thiếu dữ liệu khai báo hợp lệ',
+  approx: 'Xấp xỉ kỹ thuật',
+  'yield-only': 'Theo giới hạn chảy',
+  'declared-missing': 'Thiếu dữ liệu khai báo',
 };
 
 const REDISTRIBUTION_MODE_LABELS = {
@@ -38,7 +47,900 @@ const WIND_DIRECTION_LABELS = {
   suction: 'Gió hút',
 };
 
+const CAPACITY_REPORT_ROW_KEYS = [
+  CAPACITY_CHECK_KEYS.BENDING_STRESS,
+  'supportStress',
+  CAPACITY_CHECK_KEYS.SHEAR_CAPACITY,
+  CAPACITY_CHECK_KEYS.SUPPORT_CRUSHING,
+  CAPACITY_CHECK_KEYS.UPLIFT,
+  CAPACITY_CHECK_KEYS.DEFLECTION,
+];
+
+const CAPACITY_REPORT_ROW_LABELS = {
+  [CAPACITY_CHECK_KEYS.BENDING_STRESS]: 'Ứng suất uốn (Nhịp)',
+  supportStress: 'Ứng suất uốn (Gối)',
+  [CAPACITY_CHECK_KEYS.SHEAR_CAPACITY]: CAPACITY_CHECK_LABELS[CAPACITY_CHECK_KEYS.SHEAR_CAPACITY],
+  [CAPACITY_CHECK_KEYS.SUPPORT_CRUSHING]: CAPACITY_CHECK_LABELS[CAPACITY_CHECK_KEYS.SUPPORT_CRUSHING],
+  [CAPACITY_CHECK_KEYS.UPLIFT]: CAPACITY_CHECK_LABELS[CAPACITY_CHECK_KEYS.UPLIFT],
+  [CAPACITY_CHECK_KEYS.DEFLECTION]: CAPACITY_CHECK_LABELS[CAPACITY_CHECK_KEYS.DEFLECTION],
+};
+
 const getModeLabel = (value, labels) => labels[value] || value || '—';
+const getCapacityLabel = (key, fallback = '—') => CAPACITY_CHECK_LABELS[key] || CAPACITY_GOVERNING_CASE_LABELS[key] || fallback;
+
+const COMPARE_VARIANT_LIMIT = 3;
+const COMPARE_VARIANT_LABELS = ['PA A', 'PA B', 'PA C'];
+const COMPARE_STATUS_LABELS = {
+  pass: 'Đạt',
+  fail: 'Không đạt',
+};
+
+const REPORT_BADGE_TONE_CLASSNAMES = {
+  pass: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+  fail: 'border-rose-200 bg-rose-50 text-rose-800',
+  warning: 'border-amber-200 bg-amber-50 text-amber-800',
+  neutral: 'border-slate-200 bg-slate-100 text-slate-700',
+  info: 'border-sky-200 bg-sky-50 text-sky-800',
+  violet: 'border-violet-200 bg-violet-50 text-violet-800',
+};
+
+const createDefaultConfig = () => ({
+  projectName: 'Nhà máy Greenpan - GĐ1',
+  panelType: 'ceiling',
+  internalWallType: 'normal',
+  coreThickness: 50,
+  skinOut: 0.45,
+  skinIn: 0.45,
+  panelWidth: 1000,
+  steelYield: 280,
+  coreShearStrength: 0.12,
+  coreShearModulus: 3.5,
+  compressiveModulus: 4.0,
+  wrinklingMode: DEFAULT_WRINKLING_MODE,
+  wrinklingStress: 120,
+  wrinklingStressBasis: 'design-resistance',
+  wrinklingStressSourceType: 'unknown',
+  wrinklingStressUnit: 'MPa',
+  wrinklingStressSourceRef: '',
+  wrinklingStressSourceNote: '',
+  wrinklingStressProductContext: '',
+  redistributionMode: DEFAULT_REDISTRIBUTION_MODE,
+  kappaShear: 1.0,
+  coreDensity: 42,
+  windPressure: 0.8,
+  windDirection: 'pressure',
+  tempOut: 65,
+  tempIn: 25,
+  gammaF_thermal: 1.5,
+  screwStrength: 2.0,
+  screwStrengthBasis: 'design-resistance-per-fastener',
+  screwStrengthSourceType: 'unknown',
+  screwStrengthUnit: 'kN',
+  screwStrengthSourceRef: '',
+  screwStrengthSourceNote: '',
+  screwStrengthFastenerContext: '',
+  screwStrengthSpacingMeaning: '',
+  screwSpacing: 1000,
+  deflectionLimit: 150,
+  creepFactor: 2.4,
+  creepFactorBending: 0,
+  spans: [3.0, 3.0],
+  supportWidths: [60, 60, 60],
+  deadLoadMode: 'auto',
+  deadLoadManual_kPa: 0,
+  liveLoad_kPa: 0.25,
+  gammaG: 1.35,
+  gammaQ: 1.5,
+  enableSpanDistributedLoads: false,
+  deadLoadBySpan_kPa: [0, 0],
+  liveLoadBySpan_kPa: [0.25, 0.25],
+  pointLoads: [
+    { x_m: 1.5, P_kN: 0.30, note: 'Đèn', type: 'permanent' },
+    { x_m: 4.5, P_kN: 0.30, note: 'Máng cáp', type: 'permanent' },
+  ],
+});
+
+const cloneConfig = (source) => JSON.parse(JSON.stringify(source));
+
+const formatArtifactScopeLabel = (scope) => {
+  switch (scope) {
+    case 'snapshot-project':
+      return 'Snapshot dự án';
+    case 'snapshot-compare-set':
+      return 'Snapshot compare set';
+    case 'result-package-project':
+      return 'Result package dự án';
+    case 'result-package-compare-set':
+      return 'Result package compare set';
+    default:
+      return scope || 'JSON package';
+  }
+};
+
+const summarizeVariantLabels = (variants = []) => {
+  if (!Array.isArray(variants) || variants.length === 0) return 'Không có phương án compare.';
+  return variants.map((variant, index) => variant?.label || variant?.name || `PA ${index + 1}`).join(', ');
+};
+
+const buildImportSuccessMessage = ({
+  packageLabel,
+  projectName,
+  variantCount,
+  compareModeEnabled,
+  activeVariantLabel,
+  appVersion,
+  schemaVersion,
+} = {}) => {
+  const parts = [
+    `Đã nạp ${packageLabel || 'snapshot'}${projectName ? ` cho dự án “${projectName}”` : ''}.`,
+    `Compare set: ${variantCount || 0} phương án${variantCount ? ` (${compareModeEnabled ? 'compare mode bật' : 'compare mode tắt'})` : ''}.`,
+    activeVariantLabel ? `Phương án đang mở: ${activeVariantLabel}.` : null,
+    appVersion ? `Version: ${appVersion}.` : null,
+    schemaVersion ? `Schema: ${schemaVersion}.` : null,
+  ].filter(Boolean);
+  return parts.join(' ');
+};
+
+const createSnapshotTemplate = () => ({
+  projectName: 'Imported snapshot',
+  configSnapshot: createDefaultConfig(),
+  compareSnapshot: {
+    variantCount: 1,
+    variants: [createVariant('variant-a', COMPARE_VARIANT_LABELS[0], createDefaultConfig())],
+  },
+  appState: {
+    compareModeEnabled: false,
+    compareActiveVariantId: 'variant-a',
+  },
+});
+
+const normalizeSnapshotVariantLabel = (value, index) => {
+  const text = String(value || '').trim();
+  if (text) return text;
+  return COMPARE_VARIANT_LABELS[index] || `PA ${index + 1}`;
+};
+
+const normalizeSnapshotVariantId = (value, index) => {
+  const text = String(value || '').trim();
+  if (text) return text;
+  return index === 0 ? 'variant-a' : `variant-${index + 1}`;
+};
+
+const normalizeCompareVariantsForSnapshot = (variants, fallbackConfig) => {
+  const source = Array.isArray(variants) && variants.length > 0
+    ? variants.slice(0, COMPARE_VARIANT_LIMIT)
+    : [createVariant('variant-a', COMPARE_VARIANT_LABELS[0], fallbackConfig)];
+
+  return source.map((variant, index) => {
+    const id = normalizeSnapshotVariantId(variant?.id, index);
+    const label = normalizeSnapshotVariantLabel(variant?.label || variant?.name, index);
+    return {
+      id,
+      label,
+      name: variant?.name || label,
+      config: cloneConfig(variant?.config || fallbackConfig),
+    };
+  });
+};
+
+const normalizeImportedSnapshot = (payload) => {
+  if (!payload || typeof payload !== 'object') {
+    throw new Error('File JSON không hợp lệ. Hãy chọn đúng file snapshot đã xuất từ app.');
+  }
+
+  const base = createSnapshotTemplate();
+  const packageKind = String(payload.packageKind || '').trim();
+  const artifactScope = payload.exportMeta?.artifactScope || payload.artifactMeta?.artifactScope || '';
+  const packageLabel = payload.importSummary?.packageLabel || formatArtifactScopeLabel(artifactScope);
+
+  if (packageKind && packageKind !== APP_SNAPSHOT_KIND) {
+    throw new Error(`Bạn vừa chọn ${packageLabel}. File này chỉ để audit/kết quả, không dùng để nạp lại form. Hãy chọn file “Snapshot dự án” hoặc “Snapshot compare set”.`);
+  }
+
+  const rawConfig = payload.configSnapshot && typeof payload.configSnapshot === 'object'
+    ? payload.configSnapshot
+    : payload.config && typeof payload.config === 'object'
+      ? payload.config
+      : null;
+
+  if (!rawConfig || typeof rawConfig !== 'object') {
+    throw new Error('File snapshot thiếu khối configSnapshot nên app không biết nạp dữ liệu nào vào form. Hãy xuất lại snapshot rồi thử lại.');
+  }
+
+  const configSnapshot = { ...createDefaultConfig(), ...cloneConfig(rawConfig) };
+  const rawVariants = payload.compareSnapshot?.variants || payload.variants;
+  const compareVariants = normalizeCompareVariantsForSnapshot(rawVariants, configSnapshot);
+  const compareModeEnabled = payload.appState?.compareModeEnabled === true
+    || payload.compareModeEnabled === true
+    || compareVariants.length >= 2;
+
+  const activeVariantIdCandidate = payload.appState?.compareActiveVariantId || payload.compareActiveVariantId || payload.importSummary?.activeVariantId || compareVariants[0]?.id;
+  const activeVariant = compareVariants.find((variant) => variant.id === activeVariantIdCandidate) || compareVariants[0];
+  const nextConfig = compareModeEnabled && activeVariant?.config
+    ? cloneConfig(activeVariant.config)
+    : cloneConfig(configSnapshot);
+  const projectName = payload.projectName || nextConfig.projectName || configSnapshot.projectName || base.projectName;
+  const appVersion = String(payload?.appVersion || payload?.exportMeta?.appVersion || payload?.artifactMeta?.appVersion || '').trim() || null;
+  const schemaVersion = String(payload?.schemaVersion || '').trim() || null;
+
+  return {
+    projectName,
+    configSnapshot: nextConfig,
+    compareVariants,
+    appState: {
+      compareModeEnabled,
+      compareActiveVariantId: activeVariant?.id || compareVariants[0]?.id || 'variant-a',
+    },
+    importSummary: {
+      packageLabel,
+      artifactScope: artifactScope || (compareModeEnabled ? 'snapshot-compare-set' : 'snapshot-project'),
+      projectName,
+      compareModeEnabled,
+      variantCount: compareVariants.length,
+      activeVariantId: activeVariant?.id || null,
+      activeVariantLabel: activeVariant?.label || null,
+      variantLabelsText: summarizeVariantLabels(compareVariants),
+      appVersion,
+      schemaVersion,
+    },
+  };
+};
+
+const downloadJsonFile = (filename, payload) => {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+  const blob = new Blob([`${JSON.stringify(payload, null, 2)}\n`], { type: 'application/json;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(url);
+};
+
+const buildSafeExportFileName = ({ projectName, packageKind, compareModeEnabled, exportedAt }) => buildExportFileName({
+  projectName,
+  packageKind,
+  compareModeEnabled,
+  exportedAt,
+  extension: 'json',
+});
+
+const createVariant = (id, label, config) => ({
+  id,
+  label,
+  name: label,
+  config: cloneConfig(config),
+});
+
+const normalizeVariantLabel = (value, fallback) => {
+  const cleaned = String(value || '').trim();
+  return cleaned || fallback;
+};
+
+const formatRatioPercent = (ratio) => `${(Number(ratio || 0) * 100).toFixed(0)}%`;
+
+const buildCompareDeltaText = (baselineValue, currentValue, { inverse = false } = {}) => {
+  if (!Number.isFinite(baselineValue) || !Number.isFinite(currentValue)) return null;
+  const delta = currentValue - baselineValue;
+  if (Math.abs(delta) < 0.005) return '≈ ngang PA gốc';
+
+  const better = inverse ? delta < 0 : delta > 0;
+  const prefix = better ? '↓ tốt hơn' : '↑ xấu hơn';
+  return `${prefix} ${Math.abs(delta * 100).toFixed(1)}đ %`;
+};
+
+const buildCompareMetricRows = (summary, config) => {
+  const rows = [
+    {
+      key: 'status',
+      label: 'Pass / fail',
+      value: summary?.status === 'pass' ? 'Đạt' : 'Không đạt',
+      tone: summary?.status === 'pass' ? 'pass' : 'fail',
+    },
+    {
+      key: 'governing',
+      label: 'Case chi phối',
+      value: summary?.governingCases?.overall?.label || '—',
+      tone: 'neutral',
+    },
+    {
+      key: 'ratio',
+      label: 'Max ratio',
+      value: `${((summary?.governingCases?.overall?.ratio || 0) * 100).toFixed(0)}%`,
+      tone: (summary?.governingCases?.overall?.ratio || 0) <= 1 ? 'pass' : 'fail',
+    },
+    {
+      key: 'deflection',
+      label: 'Độ võng',
+      value: `${Number(summary?.maxDeflection || 0).toFixed(1)} / ${Number(summary?.w_limit || 0).toFixed(1)} mm`,
+      tone: (summary?.ratios?.deflection || 0) <= 1 ? 'pass' : 'fail',
+      subValue: `(${((summary?.ratios?.deflection || 0) * 100).toFixed(0)}%)`,
+    },
+    {
+      key: 'crushing',
+      label: 'Crushing',
+      value: `${((summary?.ratios?.crushing || 0) * 100).toFixed(0)}%`,
+      tone: (summary?.ratios?.crushing || 0) <= 1 ? 'pass' : 'fail',
+    },
+  ];
+
+  if (config?.panelType !== 'ceiling') {
+    rows.push({
+      key: 'uplift',
+      label: 'Uplift',
+      value: summary?.upliftEnabled ? `${((summary?.ratios?.uplift || 0) * 100).toFixed(0)}%` : 'N/A',
+      tone: !summary?.upliftEnabled ? 'muted' : (summary?.ratios?.uplift || 0) <= 1 ? 'pass' : 'fail',
+    });
+  }
+
+  return rows;
+};
+
+
+const TRANSPARENCY_RELIABILITY_LABELS = {
+  'user-declared': 'Khai báo trực tiếp',
+  'engineering-approximation': 'Xấp xỉ kỹ thuật',
+  'exact-limit-state': 'Giới hạn trạng thái trực tiếp',
+  'yield-governed': 'Theo giới hạn chảy',
+  'fallback-to-exact-limit-state': 'Fallback sang giới hạn chảy',
+  'missing-declared-input': 'Thiếu dữ liệu khai báo',
+  'engineering-calculation': 'Tính toán kỹ thuật',
+  'input-dependent': 'Phụ thuộc dữ liệu đầu vào',
+  unspecified: 'Chưa phân loại',
+};
+
+const TRANSPARENCY_CLASSIFICATION_LABELS = {
+  'user-declared': 'Khai báo trực tiếp',
+  'engineering-approximation': 'Xấp xỉ kỹ thuật',
+  'yield-governed': 'Theo giới hạn chảy',
+  'missing-declared-input': 'Thiếu dữ liệu khai báo',
+  'fallback-to-exact-limit-state': 'Fallback sang giới hạn chảy',
+  'engineering-calculation': 'Tính toán kỹ thuật',
+  'input-resistance-check': 'Kiểm tra sức kháng phụ thuộc đầu vào',
+  'limit-state-response': 'Đáp ứng trạng thái giới hạn',
+  unspecified: 'Chưa phân loại',
+};
+
+const getTransparencyLabel = (value, labels = TRANSPARENCY_RELIABILITY_LABELS) => labels[value] || value || '—';
+
+const getTransparencyTone = (value) => {
+  if (['exact-limit-state', 'user-declared'].includes(value)) return 'emerald';
+  if (['engineering-approximation', 'engineering-calculation', 'input-dependent', 'yield-governed'].includes(value)) return 'sky';
+  if (['fallback-to-exact-limit-state', 'missing-declared-input'].includes(value)) return 'amber';
+  return 'slate';
+};
+
+const TRANSPARENCY_TONE_CLASSNAMES = {
+  emerald: 'bg-emerald-50 text-emerald-800 border border-emerald-200',
+  sky: 'bg-sky-50 text-sky-800 border border-sky-200',
+  amber: 'bg-amber-50 text-amber-800 border border-amber-200',
+  slate: 'bg-slate-100 text-slate-700 border border-slate-200',
+};
+
+const TransparencyBadge = ({ children, tone = 'slate', className = '' }) => (
+  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${TRANSPARENCY_TONE_CLASSNAMES[tone] || TRANSPARENCY_TONE_CLASSNAMES.slate} ${className}`.trim()}>
+    {children}
+  </span>
+);
+
+const ReportBadge = ({ label, detail, tone = 'neutral' }) => (
+  <div className={`rounded-xl border px-3 py-2 ${REPORT_BADGE_TONE_CLASSNAMES[tone] || REPORT_BADGE_TONE_CLASSNAMES.neutral}`}>
+    <div className="text-[10px] font-bold uppercase tracking-wide">{label}</div>
+    {detail && <div className="mt-1 text-[11px] font-medium normal-case tracking-normal">{detail}</div>}
+  </div>
+);
+
+const ExecutiveSummaryPanel = ({ results, compareSummary }) => {
+  const badges = results?.reportPresentation?.badges || {};
+  const statusTone = badges?.status?.key === 'pass' ? 'pass' : 'fail';
+  const validationTone = badges?.validation?.headlineClass === 'external-captured'
+    ? 'info'
+    : badges?.validation?.headlineClass === 'internal-captured'
+      ? 'violet'
+      : 'warning';
+  const transparencyTone = badges?.transparency?.key === 'high'
+    ? 'pass'
+    : badges?.transparency?.key === 'medium'
+      ? 'info'
+      : 'warning';
+
+  return (
+    <div className="mb-6 report-section rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-50 to-white p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Executive technical snapshot</div>
+          <h3 className="mt-1 text-lg font-bold text-slate-900">Tóm tắt điều kiện kiểm tra & mức độ tin cậy</h3>
+          <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-600">
+            Khối này gom trạng thái pass/fail, benchmark class, transparency level và case chi phối để người đọc nhìn 30 giây là hiểu mức tin cậy của bản tính.
+          </p>
+        </div>
+        <div className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-bold ${statusTone === 'pass' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'}`}>
+          {badges?.status?.label || (results?.status === 'pass' ? 'PASS' : 'FAIL')}
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-4">
+        <ReportBadge label={badges?.status?.label || 'Status'} detail={badges?.status?.detail || '—'} tone={statusTone} />
+        <ReportBadge label={badges?.validation?.headlineLabel || 'Validation'} detail={badges?.validation?.capturedCount != null ? `${badges.validation.capturedCount}/${badges.validation.totalCases} cases captured` : '—'} tone={validationTone} />
+        <ReportBadge label={badges?.benchmarkClass?.label || 'Benchmark class'} detail={badges?.benchmarkClass?.detail || '—'} tone={validationTone} />
+        <ReportBadge label={badges?.transparency?.label || 'Transparency'} detail={badges?.transparency?.detail || '—'} tone={transparencyTone} />
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-[1.2fr_1fr]">
+        <div className="rounded-xl border border-slate-200 bg-white p-3">
+          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Check highlights</div>
+          <div className="mt-3 space-y-2">
+            {(results?.reportPresentation?.checkHighlights || []).map((item) => {
+              const toneClass = item.tone === 'fail'
+                ? 'text-rose-700'
+                : item.tone === 'warning'
+                  ? 'text-amber-700'
+                  : item.tone === 'pass'
+                    ? 'text-emerald-700'
+                    : 'text-slate-700';
+              return (
+                <div key={item.key} className="flex items-start justify-between gap-3 border-b border-slate-100 pb-2 last:border-b-0 last:pb-0">
+                  <div>
+                    <div className="text-[11px] font-semibold text-slate-500">{item.label}</div>
+                    <div className={`text-sm font-semibold ${toneClass}`}>{item.value}</div>
+                  </div>
+                  {item.ratio != null && (
+                    <div className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-bold ${item.tone === 'fail' ? 'bg-rose-100 text-rose-800' : item.tone === 'warning' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                      {(item.ratio * 100).toFixed(0)}%
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-slate-200 bg-white p-3">
+          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Validation coverage</div>
+          <div className="mt-3 space-y-2 text-xs text-slate-600">
+            {(badges?.validation?.keyCases || []).length > 0 ? (
+              (badges.validation.keyCases || []).map((item) => (
+                <div key={item.id} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                  <div className="font-semibold text-slate-800">{item.id} — {item.title}</div>
+                  <div className="mt-1 text-[11px] text-slate-500">{item.benchmarkLabel}{item.referenceType ? ` · ${item.referenceType}` : ''}</div>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
+                Chưa có captured benchmark case surfaced cho report snapshot hiện tại.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {compareSummary?.available && (
+        <div className="mt-4 rounded-xl border border-violet-200 bg-violet-50 p-3">
+          <div className="text-xs font-bold uppercase tracking-wide text-violet-700">Compare executive summary</div>
+          <div className="mt-2 grid gap-2 md:grid-cols-3 text-xs">
+            <div className="rounded-lg border border-violet-200 bg-white px-3 py-2">
+              <div className="text-violet-500">Phương án ưu tiên</div>
+              <div className="mt-1 font-bold text-violet-900">{compareSummary.bestVariantLabel || '—'}</div>
+              <div className="text-[11px] text-slate-500">{compareSummary.bestStatus === 'pass' ? 'Đạt' : 'Không đạt'} · {compareSummary.bestRatio != null ? formatRatioPercent(compareSummary.bestRatio) : '—'}{compareSummary.bestMarginPercent != null ? ` · margin ${compareSummary.bestMarginPercent.toFixed(1)}%` : ''}</div>
+            </div>
+            <div className="rounded-lg border border-violet-200 bg-white px-3 py-2">
+              <div className="text-violet-500">Tình trạng chung</div>
+              <div className="mt-1 font-bold text-violet-900">{compareSummary.allPass ? 'Tất cả đạt' : compareSummary.mixedStatus ? 'Lẫn đạt / không đạt' : 'Chưa có PA nào đạt'}</div>
+              <div className="text-[11px] text-slate-500">{compareSummary.passCount}/{compareSummary.variantCount} phương án đạt</div>
+            </div>
+            <div className="rounded-lg border border-violet-200 bg-white px-3 py-2">
+              <div className="text-violet-500">Case chi phối PA tốt nhất</div>
+              <div className="mt-1 font-bold text-violet-900">{compareSummary.bestGoverningLabel || '—'}</div>
+              <div className="text-[11px] text-slate-500">{compareSummary.rationale || 'Dùng để chốt lựa chọn nhanh trước khi đọc sâu từng bảng.'}</div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const AssumptionsAndLimitationsPanel = ({ results }) => {
+  const assumptions = results?.reportPresentation?.assumptions || [];
+  const limitations = results?.reportPresentation?.limitations || [];
+
+  return (
+    <div className="mb-6 report-section grid gap-4 lg:grid-cols-2">
+      <div className="rounded-xl border border-sky-200 bg-sky-50 p-4">
+        <div className="text-sm font-bold uppercase text-sky-900">Design assumptions</div>
+        <ul className="mt-3 space-y-2 text-xs leading-relaxed text-sky-900">
+          {assumptions.map((item, idx) => (
+            <li key={`assumption-${idx}`} className="flex gap-2">
+              <span className="mt-1 h-1.5 w-1.5 rounded-full bg-sky-600 shrink-0" />
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+        <div className="text-sm font-bold uppercase text-amber-900">Limitations / caution</div>
+        <ul className="mt-3 space-y-2 text-xs leading-relaxed text-amber-900">
+          {limitations.map((item, idx) => (
+            <li key={`limitation-${idx}`} className="flex gap-2">
+              <span className="mt-1 h-1.5 w-1.5 rounded-full bg-amber-600 shrink-0" />
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+};
+
+const formatSpanLoadSummary = (values = [], digits = 3, unit = 'kPa') => (
+  (values || []).map((v, idx) => `Nhịp ${idx + 1}: ${Number(v || 0).toFixed(digits)} ${unit}`)
+);
+
+const buildPerSpanLoadRows = (results) => {
+  const dead = results?.qDeadBySpan_kPa || [];
+  const live = results?.qLiveBySpan_kPa || [];
+  const spanCount = Math.max(dead.length, live.length);
+  const rows = Array.from({ length: spanCount }, (_, idx) => {
+    const qG = Number(dead[idx] || 0);
+    const qQ = Number(live[idx] || 0);
+    return {
+      spanIndex: idx,
+      spanLabel: `Nhịp ${idx + 1}`,
+      qG,
+      qQ,
+      qSLS: qG + qQ,
+      qULS: (Number(results?.gammaG) || 0) * qG + (Number(results?.gammaQ) || 0) * qQ,
+    };
+  });
+
+  const nonZeroSls = rows.map((row) => row.qSLS).filter((value) => value > 0);
+  const nonZeroUls = rows.map((row) => row.qULS).filter((value) => value > 0);
+  const maxSls = rows.length ? Math.max(...rows.map((row) => row.qSLS)) : 0;
+  const maxUls = rows.length ? Math.max(...rows.map((row) => row.qULS)) : 0;
+  const minNonZeroSls = nonZeroSls.length ? Math.min(...nonZeroSls) : 0;
+  const minNonZeroUls = nonZeroUls.length ? Math.min(...nonZeroUls) : 0;
+
+  return rows.map((row) => {
+    const flags = [];
+    if (row.qG < 0 || row.qQ < 0) flags.push('negative-load');
+    if (row.qG === 0) flags.push('zero-dead');
+    if (row.qG === 0 && row.qQ === 0) flags.push('empty-span');
+    if (maxSls > 0 && row.qSLS === maxSls) flags.push('max-sls');
+    if (maxUls > 0 && row.qULS === maxUls) flags.push('max-uls');
+    if (minNonZeroSls > 0 && row.qSLS > 0 && row.qSLS === minNonZeroSls && maxSls >= minNonZeroSls * 1.5) flags.push('min-sls');
+    if (minNonZeroUls > 0 && row.qULS > 0 && row.qULS === minNonZeroUls && maxUls >= minNonZeroUls * 1.5) flags.push('min-uls');
+
+    const tone = flags.includes('negative-load')
+      ? 'danger'
+      : flags.includes('empty-span') || flags.includes('zero-dead')
+        ? 'warning'
+        : flags.includes('max-uls') || flags.includes('max-sls')
+          ? 'info'
+          : 'neutral';
+
+    const badges = [];
+    if (flags.includes('negative-load')) badges.push({ label: 'Tải âm', tone: 'danger' });
+    if (flags.includes('empty-span')) badges.push({ label: 'Đang rơi về 0', tone: 'warning' });
+    else if (flags.includes('zero-dead')) badges.push({ label: 'qG = 0', tone: 'warning' });
+    if (flags.includes('max-uls')) badges.push({ label: 'ULS lớn nhất', tone: 'info' });
+    else if (flags.includes('max-sls')) badges.push({ label: 'SLS lớn nhất', tone: 'info' });
+    if (flags.includes('min-uls') || flags.includes('min-sls')) badges.push({ label: 'Đầu thấp', tone: 'neutral' });
+
+    return {
+      ...row,
+      flags,
+      tone,
+      badges,
+    };
+  });
+};
+
+const PER_SPAN_ROW_TONE = {
+  neutral: {
+    row: 'bg-white',
+    cell: 'text-slate-700',
+    emphasis: 'text-slate-900',
+    badge: 'border-slate-200 bg-slate-100 text-slate-700',
+  },
+  info: {
+    row: 'bg-sky-50/70',
+    cell: 'text-sky-800',
+    emphasis: 'text-sky-900',
+    badge: 'border-sky-200 bg-sky-100 text-sky-800',
+  },
+  warning: {
+    row: 'bg-amber-50/80',
+    cell: 'text-amber-800',
+    emphasis: 'text-amber-900',
+    badge: 'border-amber-200 bg-amber-100 text-amber-800',
+  },
+  danger: {
+    row: 'bg-rose-50/90',
+    cell: 'text-rose-800',
+    emphasis: 'text-rose-900',
+    badge: 'border-rose-200 bg-rose-100 text-rose-800',
+  },
+};
+
+const buildPerSpanLoadSummary = (rows = []) => {
+  if (!rows.length) return [];
+
+  const notes = [];
+  const negativeRows = rows.filter((row) => row.flags.includes('negative-load'));
+  const emptyRows = rows.filter((row) => row.flags.includes('empty-span'));
+  const zeroDeadRows = rows.filter((row) => row.flags.includes('zero-dead') && !row.flags.includes('empty-span'));
+  const maxUlsRows = rows.filter((row) => row.flags.includes('max-uls'));
+  const minUlsRows = rows.filter((row) => row.flags.includes('min-uls'));
+
+  if (negativeRows.length) {
+    notes.push({
+      tone: 'danger',
+      text: `${negativeRows.map((row) => row.spanLabel).join(', ')} có qG/qQ âm → nên kiểm tra lại dấu nhập trước khi tin kết quả.`,
+    });
+  }
+
+  if (emptyRows.length) {
+    notes.push({
+      tone: 'warning',
+      text: `${emptyRows.map((row) => row.spanLabel).join(', ')} đang rơi cả qG và qQ về 0. Nếu đây không phải chủ ý, nên nhập lại để tránh thiếu tải.`,
+    });
+  } else if (zeroDeadRows.length) {
+    notes.push({
+      tone: 'warning',
+      text: `${zeroDeadRows.map((row) => row.spanLabel).join(', ')} có qG = 0. Chỉ giữ vậy nếu bạn thực sự muốn bỏ tĩnh tải ở các nhịp này.`,
+    });
+  }
+
+  if (maxUlsRows.length) {
+    const maxValue = Math.max(...maxUlsRows.map((row) => row.qULS));
+    notes.push({
+      tone: 'info',
+      text: `${maxUlsRows.map((row) => row.spanLabel).join(', ')} đang chi phối tải ULS (${maxValue.toFixed(3)} kPa) — đây là nhịp nên nhìn đầu tiên khi rà workflow per-span.`,
+    });
+  }
+
+  if (maxUlsRows.length && minUlsRows.length) {
+    const maxValue = Math.max(...maxUlsRows.map((row) => row.qULS));
+    const minValue = Math.min(...minUlsRows.map((row) => row.qULS));
+    if (minValue > 0 && maxValue >= minValue * 1.5) {
+      notes.push({
+        tone: 'neutral',
+        text: `Biên độ đang khá lệch: ${maxUlsRows.map((row) => row.spanLabel).join(', ')} cao hơn khoảng ${(maxValue / minValue).toFixed(1)}× so với ${minUlsRows.map((row) => row.spanLabel).join(', ')}. Nếu lệch này không có chủ ý, nên rà lại input từng nhịp.`,
+      });
+    }
+  }
+
+  if (!notes.length) {
+    notes.push({
+      tone: 'neutral',
+      text: 'Các nhịp đang cùng mặt bằng tải tương đối gọn; chưa thấy nhịp nào nổi bật cần soi lại ngay.',
+    });
+  }
+
+  return notes.slice(0, 3);
+};
+
+const LOAD_WARNING_TONE = {
+  info: 'border-sky-200 bg-sky-50 text-sky-800',
+  warning: 'border-amber-200 bg-amber-50 text-amber-800',
+  danger: 'border-rose-200 bg-rose-50 text-rose-800',
+};
+
+const buildLoadWorkflowGuardrails = (config = {}, results = {}) => {
+  if (config.panelType !== 'ceiling') return [];
+
+  const mode = results?.distributedLoadMode === 'per-span' ? 'per-span' : 'uniform';
+  const deadBySpan = (results?.qDeadBySpan_kPa || []).map((v) => Number(v) || 0);
+  const liveBySpan = (results?.qLiveBySpan_kPa || []).map((v) => Number(v) || 0);
+  const warnings = [];
+
+  warnings.push({
+    id: `mode-${mode}`,
+    tone: 'info',
+    title: mode === 'per-span' ? 'Đang tính theo từng nhịp' : 'Đang dùng 1 bộ tải chung cho mọi nhịp',
+    message: mode === 'per-span'
+      ? 'Mỗi nhịp đang có bộ qG/qQ riêng. Hãy rà lại từng dòng trong bảng để chắc rằng không bỏ sót nhịp nào.'
+      : 'App đang copy cùng một qG/qQ cho tất cả các nhịp. Nếu mỗi nhịp thực tế nhận tải khác nhau, hãy bật chế độ “Nhập tải phân bố riêng cho từng nhịp”.',
+  });
+
+  if (mode !== 'per-span') return warnings;
+
+  const missingDead = [];
+  const missingLive = [];
+  const zeroDead = [];
+  const negativeDead = [];
+  const negativeLive = [];
+
+  deadBySpan.forEach((value, idx) => {
+    const raw = config?.deadLoadBySpan_kPa?.[idx];
+    if (raw === '' || raw === null || typeof raw === 'undefined') missingDead.push(idx + 1);
+    if (value === 0) zeroDead.push(idx + 1);
+    if (value < 0) negativeDead.push(idx + 1);
+  });
+
+  liveBySpan.forEach((value, idx) => {
+    const raw = config?.liveLoadBySpan_kPa?.[idx];
+    if (raw === '' || raw === null || typeof raw === 'undefined') missingLive.push(idx + 1);
+    if (value < 0) negativeLive.push(idx + 1);
+  });
+
+  if (missingDead.length || missingLive.length) {
+    warnings.push({
+      id: 'per-span-missing',
+      tone: 'warning',
+      title: 'Per-span đang bật nhưng còn ô chưa nhập rõ ràng',
+      message: `Hãy nhập đủ qG${missingDead.length ? ` cho nhịp ${missingDead.join(', ')}` : ''}${missingDead.length && missingLive.length ? ' và ' : ''}${missingLive.length ? `qQ cho nhịp ${missingLive.join(', ')}` : ''}. Để trống hiện đang bị hiểu như 0, dễ làm kết quả thấp giả tạo.`,
+    });
+  }
+
+  if (zeroDead.length) {
+    warnings.push({
+      id: 'dead-zero',
+      tone: 'warning',
+      title: 'Có nhịp đang có qG = 0',
+      message: `Nhịp ${zeroDead.join(', ')} đang có tĩnh tải bằng 0. Chỉ giữ nguyên nếu bạn thực sự muốn bỏ toàn bộ tải thường xuyên trên các nhịp này; nếu không, hãy nhập lại qG hoặc tắt per-span để dùng giá trị chung.`,
+    });
+  }
+
+  if (negativeDead.length || negativeLive.length) {
+    warnings.push({
+      id: 'negative-load',
+      tone: 'danger',
+      title: 'Có tải âm trong qG/qQ cần kiểm tra lại',
+      message: `${negativeDead.length ? `qG âm tại nhịp ${negativeDead.join(', ')}` : ''}${negativeDead.length && negativeLive.length ? '; ' : ''}${negativeLive.length ? `qQ âm tại nhịp ${negativeLive.join(', ')}` : ''}. Với workflow này, tải âm thường là nhập sai dấu. Hãy trả qG/qQ về giá trị không âm và dùng trường gió/hút cho tác động đổi dấu.`,
+    });
+  }
+
+  const compareSpread = (values = [], label) => {
+    const positives = values.filter((v) => Number.isFinite(v) && v > 0);
+    if (positives.length < 2) return null;
+    const min = Math.min(...positives);
+    const max = Math.max(...positives);
+    if (!(min > 0)) return null;
+    const ratio = max / min;
+    if (ratio < 3) return null;
+    const maxIdx = values.findIndex((v) => v === max) + 1;
+    const minIdx = values.findIndex((v) => v === min) + 1;
+    return { label, ratio, maxIdx, minIdx, min, max };
+  };
+
+  const deadSpread = compareSpread(deadBySpan, 'qG');
+  const liveSpread = compareSpread(liveBySpan, 'qQ');
+  [deadSpread, liveSpread].filter(Boolean).forEach((spread, idx) => {
+    warnings.push({
+      id: `spread-${spread.label}-${idx}`,
+      tone: 'warning',
+      title: `${spread.label} chênh lệch khá lớn giữa các nhịp`,
+      message: `${spread.label} lớn nhất ở nhịp ${spread.maxIdx} (${spread.max.toFixed(2)} kPa) đang cao khoảng ${spread.ratio.toFixed(1)} lần so với nhịp ${spread.minIdx} (${spread.min.toFixed(2)} kPa). Đây là warning mềm: hãy kiểm tra lại xem chênh lệch này là chủ ý theo công năng từng nhịp hay do nhập lệch số.`,
+    });
+  });
+
+  return warnings;
+};
+
+const TransparencyPanel = ({ results }) => {
+  const wrinklingMeta = results?.technicalTransparency?.wrinkling || results?.wrinklingMeta || {};
+  const sigmaLimitMeta = results?.technicalTransparency?.checks?.sigmaLimit || {};
+  const declaredInput = wrinklingMeta?.declaredInput || {};
+  const upliftMeta = results?.technicalTransparency?.uplift || {};
+  const upliftDeclaredInput = upliftMeta?.declaredInput || {};
+  const requestedTone = getTransparencyTone(wrinklingMeta.requestedModeReliability);
+  const effectiveTone = getTransparencyTone(wrinklingMeta.effectiveModeReliability || sigmaLimitMeta.reliability);
+  const classificationTone = getTransparencyTone(sigmaLimitMeta.classification || wrinklingMeta.sourceClassification);
+  const upliftCheckMeta = results?.technicalTransparency?.checks?.uplift || {};
+  const upliftTone = getTransparencyTone(upliftCheckMeta?.reliability);
+
+  return (
+    <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2"><Info size={14} /> Minh bạch kỹ thuật</h4>
+          <p className="text-xs text-slate-600 mt-1">Hiển thị rõ giá trị nào là khai báo trực tiếp, giá trị nào là xấp xỉ kỹ thuật và khi nào hệ thống phải fallback.</p>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <TransparencyBadge tone={requestedTone}>Yêu cầu: {getModeLabel(results?.wrinklingMode, WRINKLING_MODE_LABELS)}</TransparencyBadge>
+          <TransparencyBadge tone={effectiveTone}>Đang dùng: {getModeLabel(results?.effectiveWrinklingMode, WRINKLING_MODE_LABELS)}</TransparencyBadge>
+        </div>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-3 text-xs">
+        <div className="bg-white rounded border border-slate-200 p-3 space-y-2">
+          <div className="font-semibold text-slate-700">Kiểm tra wrinkling / giới hạn nén</div>
+          <div className="flex flex-wrap gap-2">
+            <TransparencyBadge tone={requestedTone}>{getTransparencyLabel(wrinklingMeta.requestedModeReliability)}</TransparencyBadge>
+            <TransparencyBadge tone={effectiveTone}>Độ tin cậy: {getTransparencyLabel(wrinklingMeta.effectiveModeReliability || sigmaLimitMeta.reliability)}</TransparencyBadge>
+            <TransparencyBadge tone={classificationTone}>{getTransparencyLabel(wrinklingMeta.sourceClassification, TRANSPARENCY_CLASSIFICATION_LABELS)}</TransparencyBadge>
+          </div>
+          <div className="space-y-1 text-slate-600">
+            <div>σw đang dùng: <b className="text-slate-800">{Number(results?.sigma_w || 0).toFixed(1)} MPa</b></div>
+            <div>σw khai báo: <b className="text-slate-800">{Number(results?.sigma_w_declared || 0).toFixed(1)} MPa</b></div>
+            <div>σw xấp xỉ: <b className="text-slate-800">{Number(results?.sigma_w_approx || 0).toFixed(1)} MPa</b></div>
+          </div>
+          {results?.wrinklingDeclaredMissing ? (
+            <div className="text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+              Đã chọn <b>Khai báo trực tiếp</b> nhưng thiếu giá trị hợp lệ, nên hệ thống <b>fallback sang {getModeLabel(results?.wrinklingFallbackMode, WRINKLING_MODE_LABELS)}</b> để tránh hiểu nhầm mức tin cậy.
+            </div>
+          ) : (
+            <div className="text-slate-600 space-y-1">
+              <div>
+                {results?.sigma_w_source === 'declared'
+                  ? 'Giới hạn wrinkling đang bám theo giá trị người dùng khai báo trực tiếp.'
+                  : results?.sigma_w_source === 'approx'
+                    ? 'Giới hạn wrinkling đang dùng xấp xỉ kỹ thuật từ mô đun vật liệu.'
+                    : 'Giới hạn nén đang bám trực tiếp theo giới hạn chảy thiết kế.'}
+              </div>
+              {results?.sigma_w_source === 'declared' && (
+                <div className="text-[11px] text-slate-500 space-y-1">
+                  <div>Semantic khai báo: <b>{declaredInput?.basis || 'design-resistance'}</b> · Đơn vị hiển thị: <b>{declaredInput?.unit || 'MPa'}</b></div>
+                  <div>Nguồn: <b>{declaredInput?.sourceType || 'unknown'}</b>{declaredInput?.sourceRef ? ` · ref: ${declaredInput.sourceRef}` : ''}</div>
+                  {declaredInput?.productContext && <div>Context sản phẩm: <b>{declaredInput.productContext}</b></div>}
+                  {declaredInput?.sourceNote && <div>Note: {declaredInput.sourceNote}</div>}
+                  {!declaredInput?.isSourceDocumented && <div>Repo đã có schema semantic cho input này, nhưng nếu chưa kèm ref/note thì vẫn chỉ được coi là user-declared chứ chưa nâng độ authority.</div>}
+                </div>
+              )}
+              {results?.sigma_w_source === 'approx' && (
+                <div className="text-[11px] text-slate-500">Hệ số <b>0.5</b> trong công thức xấp xỉ hiện mới là công thức nội bộ được externalize minh bạch; repo chưa gắn citation cho hệ số này và bộ biến <b>Ef/Ec/Gc</b>.</div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="bg-white rounded border border-slate-200 p-3 space-y-2">
+          <div className="font-semibold text-slate-700">Liên kết chống nhổ / screwStrength</div>
+          <div className="flex flex-wrap gap-2">
+            <TransparencyBadge tone={upliftTone}>Độ tin cậy: {getTransparencyLabel(upliftCheckMeta?.reliability)}</TransparencyBadge>
+            <TransparencyBadge tone={getTransparencyTone(upliftCheckMeta?.classification)}>{getTransparencyLabel(upliftCheckMeta?.classification, TRANSPARENCY_CLASSIFICATION_LABELS)}</TransparencyBadge>
+          </div>
+          <div className="space-y-1 text-slate-600">
+            <div>screwStrength khai báo: <b className="text-slate-800">{Number(upliftDeclaredInput?.value || 0).toFixed(2)} {upliftDeclaredInput?.unit || 'kN'}</b></div>
+            <div>Semantic: <b>{upliftDeclaredInput?.basis || 'design-resistance-per-fastener'}</b> · Nguồn: <b>{upliftDeclaredInput?.sourceType || 'unknown'}</b></div>
+            <div>Diễn giải spacing: <b>{upliftDeclaredInput?.spacingMeaning || upliftMeta?.inputSchema?.spacingMeaning || 'spacing across panel width for simplified count estimate'}</b></div>
+            {upliftDeclaredInput?.sourceRef && <div>Ref: <b>{upliftDeclaredInput.sourceRef}</b></div>}
+            {upliftDeclaredInput?.fastenerContext && <div>Context vít/liên kết: <b>{upliftDeclaredInput.fastenerContext}</b></div>}
+            {upliftDeclaredInput?.sourceNote && <div>Note: {upliftDeclaredInput.sourceNote}</div>}
+            {!upliftDeclaredInput?.isSourceDocumented && (
+              <div className="text-[11px] text-slate-500">Hiện chưa có documented source gắn vào numeric path này; repo chỉ biết đây là per-fastener resistance input do người dùng/project artifact khai báo, không tự nâng thành source-backed capacity. Artifact hunt T3 chỉ xác nhận được acquisition path ở mức vendor installation guidance: fastening phải chốt theo fastener-manufacturer data / approved project schedule, chứ chưa tìm thấy dòng kN/vít đủ mạnh để attach trực tiếp.</div>
+            )}
+          </div>
+          <div className="text-[11px] text-slate-500 space-y-1">
+            <div>Quy tắc đếm vít hiện hành: <b>round(panelWidth / screwSpacing)</b>, tối thiểu 1 — đang được giữ ở trạng thái <b>provisional</b>.</div>
+            <div>γM,screw = <b>{upliftMeta?.factor?.value || 1.33}</b> hiện đã externalize minh bạch, nhưng repo vẫn <b>chưa có documented clause / vendor worksheet</b> để source-link giá trị này.</div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded border border-slate-200 p-3 space-y-2">
+          <div className="font-semibold text-slate-700">Độ tin cậy các kiểm tra chính</div>
+          <div className="space-y-2">
+            {[
+              CAPACITY_CHECK_KEYS.SIGMA_LIMIT,
+              CAPACITY_CHECK_KEYS.BENDING_STRESS,
+              CAPACITY_CHECK_KEYS.SHEAR_CAPACITY,
+              CAPACITY_CHECK_KEYS.SUPPORT_CRUSHING,
+              CAPACITY_CHECK_KEYS.UPLIFT,
+              CAPACITY_CHECK_KEYS.DEFLECTION,
+            ].map((checkKey) => {
+              const meta = results?.technicalTransparency?.checks?.[checkKey];
+              if (!meta?.enabled) return null;
+              const label = meta?.label || CAPACITY_CHECK_LABELS[checkKey] || checkKey;
+              return (
+                <div key={checkKey} className="flex items-start justify-between gap-2 border-b border-slate-100 pb-2 last:border-b-0 last:pb-0">
+                  <div>
+                    <div className="font-medium text-slate-700">{label}</div>
+                    <div className="text-[11px] text-slate-500">Phân loại: {getTransparencyLabel(meta?.classification, TRANSPARENCY_CLASSIFICATION_LABELS)}</div>
+                  </div>
+                  <TransparencyBadge tone={getTransparencyTone(meta?.reliability)} className="shrink-0">Độ tin cậy: {getTransparencyLabel(meta?.reliability)}</TransparencyBadge>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // ===============================
 // ✅ SƠ ĐỒ TÍNH (SVG) - TRẦN: X toàn dầm
@@ -469,51 +1371,165 @@ const BeamDiagram = ({ spansM = [], windDirection = 'pressure', windPressure = 0
 };
 
 export default function GreenpanDesign_Final() {
-  // --- CONFIG STATE ---
-  const [config, setConfig] = useState({
-    projectName: 'Nhà máy Greenpan - GĐ1',
-    panelType: 'ceiling',
-    internalWallType: 'normal',
-    coreThickness: 50,
-    skinOut: 0.45,
-    skinIn: 0.45,
-    panelWidth: 1000,
-    steelYield: 280,
-    coreShearStrength: 0.12,
-    coreShearModulus: 3.5,
-    compressiveModulus: 4.0,
-    wrinklingMode: DEFAULT_WRINKLING_MODE,
-    wrinklingStress: 120,
-    redistributionMode: DEFAULT_REDISTRIBUTION_MODE,
-    kappaShear: 1.0,
-    coreDensity: 42,
-    windPressure: 0.8,
-    windDirection: 'pressure',
-    tempOut: 65,
-    tempIn: 25,
-    gammaF_thermal: 1.5,
-    screwStrength: 2.0,
-    screwSpacing: 1000,
-    deflectionLimit: 150,
-    creepFactor: 2.4, // ✅ dùng cho trần + kho lạnh
-    creepFactorBending: 0,
-    spans: [3.0, 3.0],
-    supportWidths: [60, 60, 60],
-    deadLoadMode: 'auto',
-    deadLoadManual_kPa: 0,
-    liveLoad_kPa: 0.25,
-    gammaG: 1.35,
-    gammaQ: 1.5,
-    pointLoads: [
-      { x_m: 1.5, P_kN: 0.30, note: 'Đèn', type: 'permanent' },
-      { x_m: 4.5, P_kN: 0.30, note: 'Máng cáp', type: 'permanent' },
-    ],
-  });
-
+  const [config, setConfig] = useState(() => createDefaultConfig());
+  const [compareVariants, setCompareVariants] = useState(() => [
+    createVariant('variant-a', COMPARE_VARIANT_LABELS[0], createDefaultConfig()),
+  ]);
+  const [compareModeEnabled, setCompareModeEnabled] = useState(false);
+  const [compareActiveVariantId, setCompareActiveVariantId] = useState('variant-a');
+  const [snapshotWorkflowMessage, setSnapshotWorkflowMessage] = useState('');
   const [activeTab, setActiveTab] = useState('input');
   const [printMode, setPrintMode] = useState(false);
   const [updateStatus, setUpdateStatus] = useState(null);
   const [appVersion, setAppVersion] = useState('');
+  const fallbackAppVersion = typeof window !== 'undefined'
+    ? resolveRuntimeAppVersion(window?.electronAPI?.appVersion, window?.appVersion, APP_VERSION)
+    : APP_VERSION;
+  const resolvedAppVersion = resolveRuntimeAppVersion(updateStatus?.appVersion, appVersion, fallbackAppVersion);
+  const resolvedReleaseChannel = resolveReleaseChannel(resolvedAppVersion);
+  const fileInputRef = useRef(null);
+
+  React.useEffect(() => {
+    setCompareVariants((prev) => prev.map((variant) => (
+      variant.id === compareActiveVariantId
+        ? { ...variant, config: cloneConfig(config) }
+        : variant
+    )));
+  }, [compareActiveVariantId, config]);
+
+  const compareResults = useMemo(() => (
+    compareVariants.map((variant) => ({
+      ...variant,
+      summary: runPanelAnalysis(variant.config, { defaultRedistributionMode: DEFAULT_REDISTRIBUTION_MODE }).summary,
+    }))
+  ), [compareVariants]);
+
+  const compareMetricRows = useMemo(() => {
+    if (!compareModeEnabled || compareResults.length < 2) return [];
+    const firstConfig = compareResults[0]?.config || config;
+    const baseline = compareResults[0]?.summary;
+    const rowMap = new Map();
+
+    compareResults.forEach((variant) => {
+      buildCompareMetricRows(variant.summary, variant.config || firstConfig).forEach((row) => {
+        if (!rowMap.has(row.key)) {
+          rowMap.set(row.key, { key: row.key, label: row.label, values: [] });
+        }
+
+        let diffHint = null;
+        if (baseline && variant.id !== compareResults[0]?.id) {
+          if (row.key === 'ratio') {
+            diffHint = buildCompareDeltaText(
+              Number(baseline?.governingCases?.overall?.ratio || 0),
+              Number(variant.summary?.governingCases?.overall?.ratio || 0),
+              { inverse: true },
+            );
+          }
+          if (row.key === 'deflection') {
+            diffHint = buildCompareDeltaText(
+              Number(baseline?.ratios?.deflection || 0),
+              Number(variant.summary?.ratios?.deflection || 0),
+              { inverse: true },
+            );
+          }
+          if (row.key === 'crushing') {
+            diffHint = buildCompareDeltaText(
+              Number(baseline?.ratios?.crushing || 0),
+              Number(variant.summary?.ratios?.crushing || 0),
+              { inverse: true },
+            );
+          }
+          if (row.key === 'uplift') {
+            diffHint = buildCompareDeltaText(
+              Number(baseline?.ratios?.uplift || 0),
+              Number(variant.summary?.ratios?.uplift || 0),
+              { inverse: true },
+            );
+          }
+        }
+
+        rowMap.get(row.key).values.push({
+          variantId: variant.id,
+          value: row.value,
+          tone: row.tone,
+          subValue: row.subValue,
+          diffHint,
+          isBest: compareExecutiveSummary.bestVariantId === variant.id && ['status', 'ratio', 'deflection', 'crushing', 'uplift'].includes(row.key),
+        });
+      });
+    });
+
+    return Array.from(rowMap.values());
+  }, [compareModeEnabled, compareResults, config, compareExecutiveSummary.bestVariantId]);
+
+  const compareExecutiveSummary = useMemo(() => (
+    compareModeEnabled && compareResults.length >= 2
+      ? buildCompareExecutiveSummary(compareResults)
+      : buildCompareExecutiveSummary([])
+  ), [compareModeEnabled, compareResults]);
+
+  const handleRenameCompareVariant = (variantId, rawLabel) => {
+    const fallback = compareVariants.find((variant) => variant.id === variantId)?.name
+      || compareVariants.find((variant) => variant.id === variantId)?.label
+      || 'Phương án';
+    const nextLabel = normalizeVariantLabel(rawLabel, fallback);
+    setCompareVariants((prev) => prev.map((variant) => (
+      variant.id === variantId
+        ? { ...variant, label: nextLabel, name: nextLabel }
+        : variant
+    )));
+  };
+
+  const handleSelectCompareVariant = (variantId) => {
+    const target = compareVariants.find((variant) => variant.id === variantId);
+    if (!target) return;
+    setCompareActiveVariantId(variantId);
+    setConfig(cloneConfig(target.config));
+  };
+
+  const handleAddCompareVariant = () => {
+    setCompareVariants((prev) => {
+      if (prev.length >= COMPARE_VARIANT_LIMIT) return prev;
+      const nextIndex = prev.length;
+      const nextVariant = createVariant(`variant-${nextIndex + 1}`, COMPARE_VARIANT_LABELS[nextIndex], config);
+      return [...prev, nextVariant];
+    });
+    setCompareModeEnabled(true);
+  };
+
+  const handleCloneCompareVariant = (variantId) => {
+    setCompareVariants((prev) => {
+      if (prev.length >= COMPARE_VARIANT_LIMIT) return prev;
+      const source = prev.find((variant) => variant.id === variantId) || prev[0];
+      const nextIndex = prev.length;
+      const nextVariant = createVariant(`variant-${nextIndex + 1}`, COMPARE_VARIANT_LABELS[nextIndex], source?.config || config);
+      return [...prev, nextVariant];
+    });
+    setCompareModeEnabled(true);
+  };
+
+  const handleResetCompareVariant = (variantId) => {
+    const nextConfig = cloneConfig(config);
+    setCompareVariants((prev) => prev.map((variant) => (
+      variant.id === variantId
+        ? { ...variant, config: nextConfig }
+        : variant
+    )));
+  };
+
+  const handleRemoveCompareVariant = (variantId) => {
+    setCompareVariants((prev) => {
+      if (prev.length <= 1) return prev;
+      const next = prev.filter((variant) => variant.id !== variantId);
+      const fallback = next[0];
+      if (compareActiveVariantId === variantId && fallback) {
+        setCompareActiveVariantId(fallback.id);
+        setConfig(cloneConfig(fallback.config));
+      }
+      if (next.length < 2) setCompareModeEnabled(false);
+      return next;
+    });
+  };
 
   React.useEffect(() => {
     const ipcRenderer = window?.require?.('electron')?.ipcRenderer;
@@ -532,8 +1548,12 @@ export default function GreenpanDesign_Final() {
 
     const loadVersion = async () => {
       try {
-        const version = await ipcRenderer.invoke('app-version');
-        if (version) setAppVersion(version);
+        const [version, releaseMeta] = await Promise.all([
+          ipcRenderer.invoke('app-version'),
+          ipcRenderer.invoke('release-meta').catch(() => null),
+        ]);
+        const resolvedVersion = resolveRuntimeAppVersion(releaseMeta?.appVersion, version);
+        if (resolvedVersion) setAppVersion(resolvedVersion);
       } catch (err) {
         console.warn('Failed to load app version', err);
       }
@@ -586,6 +1606,14 @@ export default function GreenpanDesign_Final() {
     setConfig(prev => ({ ...prev, spans: newSpans }));
   };
 
+  const handleDistributedLoadSpanChange = (kind, index, value) => {
+    const key = kind === 'dead' ? 'deadLoadBySpan_kPa' : 'liveLoadBySpan_kPa';
+    const nextValues = [...(config[key] || [])];
+    const parsed = parseFloat(value);
+    nextValues[index] = Number.isNaN(parsed) ? '' : parsed;
+    setConfig(prev => ({ ...prev, [key]: nextValues }));
+  };
+
   const handleSupportWidthChange = (index, value) => {
     const newSupportWidths = [...config.supportWidths];
     const parsed = parseFloat(value);
@@ -595,7 +1623,13 @@ export default function GreenpanDesign_Final() {
 
   const addSpan = () => {
     if (config.spans.length < 5) {
-      setConfig(prev => ({ ...prev, spans: [...prev.spans, 3.0], supportWidths: [...prev.supportWidths, 60] }));
+      setConfig(prev => ({
+        ...prev,
+        spans: [...prev.spans, 3.0],
+        supportWidths: [...prev.supportWidths, 60],
+        deadLoadBySpan_kPa: [...(prev.deadLoadBySpan_kPa || []), prev.deadLoadMode === 'manual' ? (Number(prev.deadLoadManual_kPa) || 0) : 0],
+        liveLoadBySpan_kPa: [...(prev.liveLoadBySpan_kPa || []), Number(prev.liveLoad_kPa) || 0],
+      }));
     }
   };
 
@@ -603,7 +1637,15 @@ export default function GreenpanDesign_Final() {
     if (config.spans.length > 1) {
       const newSpans = [...config.spans]; newSpans.pop();
       const newSupportWidths = [...config.supportWidths]; newSupportWidths.pop();
-      setConfig(prev => ({ ...prev, spans: newSpans, supportWidths: newSupportWidths }));
+      const newDeadLoadBySpan = [...(config.deadLoadBySpan_kPa || [])]; newDeadLoadBySpan.pop();
+      const newLiveLoadBySpan = [...(config.liveLoadBySpan_kPa || [])]; newLiveLoadBySpan.pop();
+      setConfig(prev => ({
+        ...prev,
+        spans: newSpans,
+        supportWidths: newSupportWidths,
+        deadLoadBySpan_kPa: newDeadLoadBySpan,
+        liveLoadBySpan_kPa: newLiveLoadBySpan,
+      }));
     }
   };
 
@@ -620,10 +1662,164 @@ export default function GreenpanDesign_Final() {
     });
   };
 
+  const handleExportPackage = () => {
+    const exportedAt = new Date().toISOString();
+    const packagePayload = buildResultPackage({
+      config,
+      summary: results,
+      compareModeEnabled,
+      compareVariants,
+      compareResults,
+      compareSummary: compareExecutiveSummary,
+      appVersion,
+      fallbackAppVersion,
+      exportedAt,
+    });
+    const filename = packagePayload.exportMeta?.fileName || buildSafeExportFileName({
+      projectName: config.projectName,
+      packageKind: packagePayload.packageKind,
+      compareModeEnabled,
+      exportedAt,
+    });
+    downloadJsonFile(filename, packagePayload);
+    setSnapshotWorkflowMessage(`Đã xuất ${formatArtifactScopeLabel(packagePayload.exportMeta?.artifactScope)} để audit/kết quả. File này không dùng để nạp lại form.`);
+  };
+
+  const handleExportSnapshot = () => {
+    const exportedAt = new Date().toISOString();
+    const snapshotPayload = buildAppSnapshotPackage({
+      config,
+      compareModeEnabled,
+      compareVariants,
+      compareActiveVariantId,
+      appVersion,
+      fallbackAppVersion,
+      exportedAt,
+    });
+    const filename = snapshotPayload.exportMeta?.fileName || buildSafeExportFileName({
+      projectName: config.projectName,
+      packageKind: snapshotPayload.packageKind,
+      compareModeEnabled,
+      exportedAt,
+    });
+    downloadJsonFile(filename, snapshotPayload);
+    setSnapshotWorkflowMessage(`Đã xuất ${snapshotPayload.importSummary?.packageLabel || formatArtifactScopeLabel(snapshotPayload.exportMeta?.artifactScope)}. Có thể nạp lại form sau này${snapshotPayload.importSummary?.variantCount ? ` · ${snapshotPayload.importSummary.variantCount} phương án` : ''}.`);
+  };
+
+  const handleTriggerSnapshotImport = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImportSnapshot = async (event) => {
+    const [file] = Array.from(event.target?.files || []);
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const imported = normalizeImportedSnapshot(parsed);
+      const inferredVersion = imported.importSummary?.appVersion || String(parsed?.appVersion || parsed?.exportMeta?.appVersion || '').trim();
+      if (inferredVersion) setAppVersion(inferredVersion);
+      setCompareVariants(imported.compareVariants);
+      setCompareModeEnabled(imported.appState.compareModeEnabled);
+      setCompareActiveVariantId(imported.appState.compareActiveVariantId);
+      setConfig(imported.configSnapshot);
+      setActiveTab('input');
+      setSnapshotWorkflowMessage(buildImportSuccessMessage(imported.importSummary));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Không đọc được file snapshot.';
+      setSnapshotWorkflowMessage(message);
+      if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+        window.alert(message);
+      } else {
+        console.error(message);
+      }
+    } finally {
+      if (event.target) event.target.value = '';
+    }
+  };
+
   const results = useMemo(() => {
-    const { summary } = runPanelAnalysis(config, { defaultRedistributionMode: DEFAULT_REDISTRIBUTION_MODE });
+    const { summary } = runPanelAnalysis(config, {
+      defaultRedistributionMode: DEFAULT_REDISTRIBUTION_MODE,
+      compareSummary: compareExecutiveSummary,
+    });
     return summary;
-  }, [config]);
+  }, [config, compareExecutiveSummary]);
+
+  const distributedLoadRows = useMemo(() => buildPerSpanLoadRows(results), [results]);
+  const perSpanSummaryItems = useMemo(() => buildPerSpanLoadSummary(distributedLoadRows), [distributedLoadRows]);
+
+  const loadWorkflowGuardrails = useMemo(() => buildLoadWorkflowGuardrails(config, results), [config, results]);
+
+  const governingCaseRows = [
+    CAPACITY_GOVERNING_CASE_KEYS.MOMENT,
+    CAPACITY_GOVERNING_CASE_KEYS.SHEAR,
+    CAPACITY_GOVERNING_CASE_KEYS.CRUSHING,
+    CAPACITY_GOVERNING_CASE_KEYS.DEFLECTION,
+    CAPACITY_GOVERNING_CASE_KEYS.UPLIFT,
+    CAPACITY_GOVERNING_CASE_KEYS.OVERALL,
+  ]
+    .map((caseKey) => ({ caseKey, item: results.governingCases?.[caseKey] }))
+    .filter(({ caseKey, item }) => item && (caseKey !== CAPACITY_GOVERNING_CASE_KEYS.UPLIFT || item.key !== 'na'));
+
+  const capacityReportRows = CAPACITY_REPORT_ROW_KEYS
+    .filter((rowKey) => rowKey !== CAPACITY_CHECK_KEYS.UPLIFT || config.panelType !== 'ceiling')
+    .map((rowKey) => {
+      switch (rowKey) {
+        case CAPACITY_CHECK_KEYS.BENDING_STRESS:
+          return {
+            key: rowKey,
+            label: CAPACITY_REPORT_ROW_LABELS[rowKey],
+            demand: `${results.stress_span.toFixed(1)} MPa`,
+            resistance: `${results.sigma_limit.toFixed(1)} MPa`,
+            ratio: results.ratios.bending,
+          };
+        case 'supportStress':
+          return {
+            key: rowKey,
+            label: CAPACITY_REPORT_ROW_LABELS[rowKey],
+            demand: `${results.stress_support.toFixed(1)} MPa`,
+            resistance: `${results.sigma_limit.toFixed(1)} MPa`,
+            ratio: results.ratios.support,
+          };
+        case CAPACITY_CHECK_KEYS.SHEAR_CAPACITY:
+          return {
+            key: rowKey,
+            label: CAPACITY_REPORT_ROW_LABELS[rowKey],
+            demand: `${(results.maxShear / 1000).toFixed(2)} kN`,
+            resistance: `${(results.V_Rd / 1000).toFixed(2)} kN`,
+            ratio: results.ratios.shear,
+          };
+        case CAPACITY_CHECK_KEYS.SUPPORT_CRUSHING:
+          return {
+            key: rowKey,
+            label: CAPACITY_REPORT_ROW_LABELS[rowKey],
+            demand: `${(results.maxReaction / 1000).toFixed(2)} kN`,
+            resistance: `${(results.F_Rd_Worst / 1000).toFixed(2)} kN`,
+            ratio: results.ratios.crushing,
+          };
+        case CAPACITY_CHECK_KEYS.UPLIFT:
+          return {
+            key: rowKey,
+            label: CAPACITY_REPORT_ROW_LABELS[rowKey],
+            demand: `${(results.maxUplift / 1000).toFixed(2)} kN`,
+            resistance: `${(results.T_Rd_Worst / 1000).toFixed(2)} kN`,
+            ratio: results.ratios.uplift,
+          };
+        case CAPACITY_CHECK_KEYS.DEFLECTION:
+          return {
+            key: rowKey,
+            label: CAPACITY_REPORT_ROW_LABELS[rowKey],
+            demand: `${results.maxDeflection.toFixed(1)} mm`,
+            resistance: `${results.w_limit.toFixed(1)} mm (L/${results.limitDenom})`,
+            ratio: results.ratios.deflection,
+          };
+        default:
+          return null;
+      }
+    })
+    .filter(Boolean);
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
@@ -699,8 +1895,11 @@ export default function GreenpanDesign_Final() {
     <div className="app-root flex flex-col min-h-screen bg-gray-50 text-gray-800 font-sans overflow-x-hidden">
       <header className="bg-slate-800 text-white p-4 shadow-md flex justify-between items-center shrink-0 print:hidden">
         <div className="flex items-center gap-3">
-          <img src="./logo_app.jpg" alt="Greenpan Design" className="h-10 w-10 object-contain" />
-          <div><h1 className="text-xl font-bold leading-none">Greenpan Design — Tính panel</h1></div>
+          <img src="./logo_app.jpg" alt={APP_DISPLAY_NAME} className="h-10 w-10 object-contain" />
+          <div>
+            <h1 className="text-xl font-bold leading-none">{APP_DISPLAY_NAME} — Panel calculation</h1>
+            <div className="text-[11px] text-slate-300">{buildReleaseStamp(resolvedAppVersion)} · {resolvedReleaseChannel}</div>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           {(updateStatus?.event || updateStatus?.appVersion || appVersion) && (
@@ -728,6 +1927,178 @@ export default function GreenpanDesign_Final() {
         className="flex-1 overflow-y-auto overflow-x-hidden p-4 print:p-0 print:overflow-visible bg-gray-100"
         style={{ scrollbarGutter: 'stable' }}
       >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="application/json,.json"
+          className="hidden"
+          onChange={handleImportSnapshot}
+        />
+        <div className="mb-4 rounded-lg border border-violet-200 bg-violet-50 px-4 py-3 print:hidden">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="max-w-3xl">
+              <div className="text-sm font-bold text-violet-900">Snapshot / compare workflow</div>
+              <div className="mt-1 text-xs text-violet-800">
+                Dùng <strong>Snapshot dự án</strong> để lưu/nạp lại đúng form đang làm. Khi bật compare mode, app sẽ lưu thành <strong>Snapshot compare set</strong> để giữ cả bộ phương án. <strong>Result package</strong> chỉ dùng để audit/kết quả, không dùng để import lại form.
+              </div>
+              <div className="mt-2 grid gap-2 text-[11px] text-violet-900 md:grid-cols-3">
+                <div className="rounded-lg border border-violet-200 bg-white px-3 py-2">
+                  <div className="font-bold uppercase tracking-wide text-violet-700">Snapshot hiện tại</div>
+                  <div className="mt-1">{compareModeEnabled ? 'Snapshot compare set' : 'Snapshot dự án'} · {compareVariants.length} phương án</div>
+                  <div className="text-slate-600">Active: {compareVariants.find((variant) => variant.id === compareActiveVariantId)?.label || '—'}</div>
+                </div>
+                <div className="rounded-lg border border-violet-200 bg-white px-3 py-2">
+                  <div className="font-bold uppercase tracking-wide text-violet-700">Compare persistence</div>
+                  <div className="mt-1">Baseline: {compareVariants[0]?.label || '—'}</div>
+                  <div className="text-slate-600">Trong snapshot: {summarizeVariantLabels(compareVariants)}</div>
+                </div>
+                <div className="rounded-lg border border-violet-200 bg-white px-3 py-2">
+                  <div className="font-bold uppercase tracking-wide text-violet-700">Import guide</div>
+                  <div className="mt-1">Chỉ chọn file “Snapshot dự án” hoặc “Snapshot compare set”.</div>
+                  <div className="text-slate-600">Nếu chọn nhầm result package, app sẽ báo rõ lý do.</div>
+                </div>
+              </div>
+              {snapshotWorkflowMessage && (
+                <div className="mt-2 rounded-lg border border-violet-200 bg-white px-3 py-2 text-xs text-violet-900">
+                  {snapshotWorkflowMessage}
+                </div>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={handleExportSnapshot}
+                className="rounded-full border border-violet-300 bg-white px-3 py-1 text-sm font-semibold text-violet-900 hover:border-violet-400"
+              >
+                Xuất {compareModeEnabled ? 'Snapshot compare set' : 'Snapshot dự án'}
+              </button>
+              <button
+                type="button"
+                onClick={handleTriggerSnapshotImport}
+                className="rounded-full border border-violet-300 bg-white px-3 py-1 text-sm font-semibold text-violet-900 hover:border-violet-400"
+              >
+                Nạp snapshot vào form
+              </button>
+              <label className="inline-flex items-center gap-2 rounded-full border border-violet-300 bg-white px-3 py-1 text-sm font-semibold text-violet-900">
+                <input
+                  type="checkbox"
+                  checked={compareModeEnabled}
+                  onChange={(e) => setCompareModeEnabled(e.target.checked)}
+                />
+                Bật compare mode
+              </label>
+            </div>
+          </div>
+
+          {compareModeEnabled && (
+            <div className="mt-3 space-y-3">
+              <div className="flex flex-wrap gap-2">
+                {compareVariants.map((variant) => {
+                  const isActive = variant.id === compareActiveVariantId;
+                  const summary = compareResults.find((item) => item.id === variant.id)?.summary;
+                  return (
+                    <button
+                      key={variant.id}
+                      type="button"
+                      onClick={() => handleSelectCompareVariant(variant.id)}
+                      className={`rounded-lg border px-3 py-2 text-left text-sm transition ${isActive ? 'border-violet-500 bg-violet-600 text-white shadow-sm' : 'border-violet-200 bg-white text-violet-900 hover:border-violet-400'}`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="font-bold">{variant.label}</div>
+                        {compareExecutiveSummary.bestVariantId === variant.id && (
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${isActive ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-700'}`}>Đọc trước</span>
+                        )}
+                      </div>
+                      <div className={`text-[11px] ${isActive ? 'text-violet-100' : 'text-violet-700'}`}>
+                        {summary?.status === 'pass' ? 'Đạt' : 'Không đạt'} · max ratio {formatRatioPercent(summary?.governingCases?.overall?.ratio || 0)}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="rounded-lg border border-violet-200 bg-white p-3">
+                <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-violet-700">Đổi tên compare set để snapshot/load dễ nhận diện</div>
+                <div className="grid gap-2 md:grid-cols-3">
+                  {compareVariants.map((variant, idx) => (
+                    <label key={`compare-rename-${variant.id}`} className="text-xs text-slate-600">
+                      <div className="mb-1 font-semibold">{COMPARE_VARIANT_LABELS[idx] || `PA ${idx + 1}`}</div>
+                      <input
+                        type="text"
+                        value={variant.label}
+                        onChange={(e) => handleRenameCompareVariant(variant.id, e.target.value)}
+                        className="w-full rounded border border-violet-200 px-2 py-1.5 text-sm text-slate-900"
+                        placeholder={variant.name || variant.label}
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2 text-xs">
+                <button type="button" onClick={handleAddCompareVariant} disabled={compareVariants.length >= COMPARE_VARIANT_LIMIT} className="rounded border border-violet-300 bg-white px-3 py-1.5 font-semibold text-violet-900 disabled:cursor-not-allowed disabled:opacity-50">
+                  + Thêm phương án mới từ form đang mở
+                </button>
+                <button type="button" onClick={handleExportSnapshot} className="rounded border border-violet-300 bg-white px-3 py-1.5 font-semibold text-violet-900">
+                  Xuất snapshot compare set này
+                </button>
+                <button type="button" onClick={() => handleCloneCompareVariant(compareActiveVariantId)} disabled={compareVariants.length >= COMPARE_VARIANT_LIMIT} className="rounded border border-violet-300 bg-white px-3 py-1.5 font-semibold text-violet-900 disabled:cursor-not-allowed disabled:opacity-50">
+                  Nhân bản {compareVariants.find((item) => item.id === compareActiveVariantId)?.label || 'PA hiện tại'} thành PA mới
+                </button>
+                <button type="button" onClick={() => handleResetCompareVariant(compareActiveVariantId)} className="rounded border border-violet-300 bg-white px-3 py-1.5 font-semibold text-violet-900">
+                  Ghi đè {compareVariants.find((item) => item.id === compareActiveVariantId)?.label || 'PA hiện tại'} bằng form đang mở
+                </button>
+                {compareVariants.length > 1 && (
+                  <button type="button" onClick={() => handleRemoveCompareVariant(compareActiveVariantId)} className="rounded border border-rose-300 bg-white px-3 py-1.5 font-semibold text-rose-700">
+                    Xóa {compareVariants.find((item) => item.id === compareActiveVariantId)?.label || 'PA hiện tại'} khỏi compare set
+                  </button>
+                )}
+              </div>
+
+              {compareMetricRows.length > 0 && (
+                <div className="overflow-x-auto rounded-lg border border-violet-200 bg-white">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-violet-100 text-violet-950">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-bold">Chỉ tiêu</th>
+                        {compareResults.map((variant) => (
+                          <th key={`compare-head-${variant.id}`} className="px-3 py-2 text-left font-bold">{variant.label}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {compareMetricRows.map((row) => (
+                        <tr key={row.key} className="border-t border-violet-100 align-top">
+                          <td className="px-3 py-2 font-medium text-slate-700">{row.label}</td>
+                          {row.values.map((cell) => {
+                            const toneClass = cell.tone === 'pass'
+                              ? 'text-emerald-700'
+                              : cell.tone === 'fail'
+                                ? 'text-rose-700'
+                                : cell.tone === 'muted'
+                                  ? 'text-slate-400'
+                                  : 'text-slate-800';
+                            return (
+                              <td key={`${row.key}-${cell.variantId}`} className={`px-3 py-2 font-semibold ${cell.isBest ? 'bg-emerald-50/70' : ''} ${toneClass}`.trim()}>
+                                <div className="flex items-center gap-2">
+                                  <span>{cell.value}</span>
+                                  {cell.isBest && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">Best</span>}
+                                </div>
+                                {cell.subValue && <div className="text-[11px] font-medium text-slate-500">{cell.subValue}</div>}
+                                {cell.diffHint && <div className="text-[10px] font-medium text-slate-500">{cell.diffHint}</div>}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* INPUT TAB */}
         <div id="tab-input" className={activeTab === 'input' ? 'block' : 'hidden'}>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
@@ -859,12 +2230,54 @@ export default function GreenpanDesign_Final() {
                 <div><label className="text-xs block">Mô đun cắt lõi Gc (MPa)</label><input type="number" step="0.1" name="coreShearModulus" value={config.coreShearModulus} onChange={handleInputChange} className="w-full border p-2 rounded" /></div>
                 <div><label className="text-xs block">Mô đun nén lõi Ec (MPa)</label><input type="number" step="0.1" name="compressiveModulus" value={config.compressiveModulus} onChange={handleInputChange} className="w-full border p-2 rounded" /></div>
                 <div><label className="text-xs block">Hệ số kappa cắt</label><input type="number" step="0.05" name="kappaShear" value={config.kappaShear} onChange={handleInputChange} className="w-full border p-2 rounded" /></div>
-                <div><label className="text-xs block">Chế độ kiểm tra nhăn</label><select name="wrinklingMode" value={config.wrinklingMode} onChange={handleInputChange} className="w-full border p-2 rounded"><option value="declared">Khai báo trực tiếp</option><option value="approx">Xấp xỉ</option><option value="yield-only">Chỉ theo giới hạn chảy</option></select></div>
-                <div>
-                  <label className="text-xs block">Ứng suất nhăn khai báo (MPa)</label>
-                  <input type="number" step="0.1" name="wrinklingStress" value={config.wrinklingStress} onChange={handleInputChange} className="w-full border p-2 rounded" />
+                <div><label className="text-xs block">Chế độ kiểm tra nhăn</label><select name="wrinklingMode" value={config.wrinklingMode} onChange={handleInputChange} className="w-full border p-2 rounded"><option value="declared">Khai báo trực tiếp</option><option value="approx">Xấp xỉ kỹ thuật</option><option value="yield-only">Theo giới hạn chảy</option></select></div>
+                <div className="col-span-2 rounded border border-amber-200 bg-amber-50/40 p-3 space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs block">Ứng suất nhăn khai báo</label>
+                      <input type="number" step="0.1" name="wrinklingStress" value={config.wrinklingStress} onChange={handleInputChange} className="w-full border p-2 rounded" />
+                    </div>
+                    <div>
+                      <label className="text-xs block">Đơn vị / basis hiển thị</label>
+                      <input type="text" name="wrinklingStressUnit" value={config.wrinklingStressUnit} onChange={handleInputChange} className="w-full border p-2 rounded" placeholder="MPa" />
+                    </div>
+                    <div>
+                      <label className="text-xs block">Semantic của giá trị khai báo</label>
+                      <select name="wrinklingStressBasis" value={config.wrinklingStressBasis} onChange={handleInputChange} className="w-full border p-2 rounded">
+                        <option value="design-resistance">Giá trị thiết kế dùng trực tiếp</option>
+                        <option value="characteristic-resistance">Giá trị đặc trưng</option>
+                        <option value="test-result">Kết quả thử nghiệm</option>
+                        <option value="vendor-table">Giá trị từ bảng vendor/datasheet</option>
+                        <option value="user-note">Ghi chú nội bộ / user note</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs block">Loại nguồn</label>
+                      <select name="wrinklingStressSourceType" value={config.wrinklingStressSourceType} onChange={handleInputChange} className="w-full border p-2 rounded">
+                        <option value="unknown">Chưa rõ nguồn</option>
+                        <option value="vendor">Vendor datasheet/manual</option>
+                        <option value="test">Test report</option>
+                        <option value="worksheet">Worksheet nội bộ đã lưu</option>
+                        <option value="manual">Nhập tay / nhớ lại</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs block">Nguồn tham chiếu / product context</label>
+                    <input type="text" name="wrinklingStressSourceRef" value={config.wrinklingStressSourceRef} onChange={handleInputChange} className="w-full border p-2 rounded" placeholder="Ví dụ: datasheet XYZ rev.B / worksheet 2025-11 / PIR 50 mm" />
+                  </div>
+                  <div>
+                    <label className="text-xs block">Ghi chú nguồn / giả định</label>
+                    <textarea name="wrinklingStressSourceNote" value={config.wrinklingStressSourceNote} onChange={handleInputChange} className="w-full border p-2 rounded min-h-[72px]" placeholder="Ghi rõ nếu đây là characteristic value, kết quả test chưa quy đổi, hoặc note nội bộ chưa có citation cứng." />
+                  </div>
+                  <div>
+                    <label className="text-xs block">Context sản phẩm áp dụng</label>
+                    <input type="text" name="wrinklingStressProductContext" value={config.wrinklingStressProductContext} onChange={handleInputChange} className="w-full border p-2 rounded" placeholder="Panel line / core density / thickness / facing..." />
+                  </div>
+                  <p className="text-[11px] text-slate-600">Giá trị này hiện được hiểu là <b>khai báo sức kháng/ứng suất wrinkling theo nguồn do người dùng cung cấp</b>. Hệ thống vẫn tính như cũ, nhưng sẽ mang theo basis + provenance để tránh nhập một con số mơ hồ.</p>
+                  <p className="text-[11px] text-slate-500">Repo hiện đã gắn được <b>guidance cấp product-family</b> từ vendor technical guide có nêu “wrinkling of the face layer…”, nên nếu nhập theo panel family tương ứng hãy ưu tiên khai rõ <b>basis</b> + <b>source ref</b>. Tuy vậy, sau đợt artifact hunt hiện tại repo vẫn <b>chưa có vendor table/test/worksheet/manual line chứa con số MPa cụ thể</b> cho declared path này, nên giá trị số vẫn chỉ được coi là source-backed khi chính table/test/worksheet chứa đúng giá trị đó được đính kèm.</p>
                   {config.wrinklingMode === 'declared' && !(Number(config.wrinklingStress) > 0) && (
-                    <p className="text-[11px] text-amber-700 mt-1">Thiếu ứng suất nhăn khai báo hợp lệ; báo cáo sẽ gắn cờ thiếu dữ liệu khai báo và tạm chuyển sang kiểm tra theo giới hạn chảy.</p>
+                    <p className="text-[11px] text-amber-700">Thiếu ứng suất wrinkling khai báo hợp lệ; báo cáo sẽ gắn cờ thiếu dữ liệu và fallback tạm sang kiểm tra theo giới hạn chảy.</p>
                   )}
                 </div>
                 <div><label className="text-xs block">Chế độ phân phối nội lực</label><select name="redistributionMode" value={config.redistributionMode} onChange={handleInputChange} className="w-full border p-2 rounded"><option value="elastic">Đàn hồi</option><option value="simplified">Đơn giản hóa</option></select></div>
@@ -872,6 +2285,14 @@ export default function GreenpanDesign_Final() {
                   <>
                     <div><label className="text-xs block">Khả năng chịu kéo vít (kN)</label><input type="number" step="0.1" name="screwStrength" value={config.screwStrength} onChange={handleInputChange} className="w-full border p-2 rounded" /></div>
                     <div><label className="text-xs block">Bước vít (mm)</label><input type="number" step="10" name="screwSpacing" value={config.screwSpacing} onChange={handleInputChange} className="w-full border p-2 rounded" /></div>
+                    <div><label className="text-xs block">Basis sức kháng vít</label><select name="screwStrengthBasis" value={config.screwStrengthBasis} onChange={handleInputChange} className="w-full border p-2 rounded"><option value="design-resistance-per-fastener">Design resistance / mỗi vít</option><option value="characteristic-resistance-per-fastener">Characteristic resistance / mỗi vít</option><option value="vendor-allowable-per-fastener">Vendor allowable / mỗi vít</option><option value="test-result-per-fastener">Test result / mỗi vít</option><option value="user-note-per-fastener">User note / mỗi vít</option></select></div>
+                    <div><label className="text-xs block">Loại nguồn sức kháng vít</label><select name="screwStrengthSourceType" value={config.screwStrengthSourceType} onChange={handleInputChange} className="w-full border p-2 rounded"><option value="unknown">Chưa rõ nguồn</option><option value="vendor">Vendor datasheet / manual</option><option value="schedule">Project fastening schedule</option><option value="test">Test report / lab sheet</option><option value="worksheet">Archived worksheet / calc note</option><option value="manual">Manual user entry</option></select></div>
+                    <div><label className="text-xs block">Đơn vị hiển thị</label><input type="text" name="screwStrengthUnit" value={config.screwStrengthUnit} onChange={handleInputChange} className="w-full border p-2 rounded" placeholder="kN" /></div>
+                    <div><label className="text-xs block">Source ref</label><input type="text" name="screwStrengthSourceRef" value={config.screwStrengthSourceRef} onChange={handleInputChange} className="w-full border p-2 rounded" placeholder="Ví dụ: fastener datasheet ABC / schedule rev.2 / worksheet uplift-01" /></div>
+                    <div className="col-span-2"><label className="text-xs block">Fastener / application context</label><input type="text" name="screwStrengthFastenerContext" value={config.screwStrengthFastenerContext} onChange={handleInputChange} className="w-full border p-2 rounded" placeholder="Fastener type / substrate / sheet thickness / embedment / washer / support line..." /></div>
+                    <div className="col-span-2"><label className="text-xs block">Source note</label><textarea name="screwStrengthSourceNote" value={config.screwStrengthSourceNote} onChange={handleInputChange} className="w-full border p-2 rounded min-h-[72px]" placeholder="Ghi rõ nếu đây là characteristic value, vendor allowable chưa quy đổi, hoặc note nội bộ chưa có citation cứng." /></div>
+                    <div className="col-span-2"><label className="text-xs block">Diễn giải spacing-to-count (tuỳ chọn)</label><input type="text" name="screwStrengthSpacingMeaning" value={config.screwStrengthSpacingMeaning} onChange={handleInputChange} className="w-full border p-2 rounded" placeholder="Mặc định: spacing across panelWidth for simplified count estimate" /></div>
+                    <div className="col-span-2 text-[11px] text-slate-600 space-y-1"><p>Giá trị <b>screwStrength</b> hiện được hiểu là <b>sức kháng nhổ / pull-out khai báo trên mỗi vít</b>. Hệ thống giữ nguyên công thức uplift hiện có, nhưng sẽ mang theo basis + provenance để tránh nhập một con số kN mơ hồ.</p><p className="text-slate-500">Repo hiện <b>chưa có documented datasheet/schedule/test/worksheet</b> chứng minh sẵn con số kN cụ thể cho từng case. Nếu chưa gắn <b>source ref</b> hoặc <b>source note</b>, báo cáo sẽ nói rõ đây vẫn là <b>user-declared fastener resistance</b>. Quy tắc <b>round(panelWidth / screwSpacing)</b> và <b>γM,screw</b> cũng đang được exposed minh bạch như source-gap/provisional metadata, không phải cited rule.</p></div>
                   </>
                 )}
 
@@ -887,6 +2308,20 @@ export default function GreenpanDesign_Final() {
                     <div className="text-xs font-bold text-emerald-800">TẢI TRỌNG TÁC DỤNG LÊN TRẦN</div>
 
                     <div className="grid grid-cols-2 gap-3">
+                      <div className="col-span-2 rounded border border-emerald-200 bg-white/70 p-3">
+                        <label className="flex items-center gap-2 text-sm font-semibold text-emerald-900">
+                          <input
+                            type="checkbox"
+                            checked={config.enableSpanDistributedLoads === true}
+                            onChange={(e) => setConfig(prev => ({ ...prev, enableSpanDistributedLoads: e.target.checked }))}
+                          />
+                          Nhập tải phân bố riêng cho từng nhịp
+                        </label>
+                        <div className="text-[10px] text-gray-600 mt-1">
+                          Tắt tuỳ chọn này để dùng 1 bộ qG/qQ chung như flow cũ. Bật để khai báo qG và qQ riêng cho từng nhịp ở bảng bên dưới.
+                        </div>
+                      </div>
+
                       <div>
                         <label className="text-xs block font-bold">Tĩnh tải</label>
                         <select
@@ -923,6 +2358,106 @@ export default function GreenpanDesign_Final() {
                             onChange={handleInputChange}
                             className="w-full border p-2 rounded"
                           />
+                        </div>
+                      )}
+
+                      <div className="col-span-2 space-y-2">
+                        {loadWorkflowGuardrails.map((item) => (
+                          <div key={item.id} className={`rounded border p-3 ${LOAD_WARNING_TONE[item.tone] || LOAD_WARNING_TONE.info}`}>
+                            <div className="text-xs font-semibold">{item.title}</div>
+                            <div className="mt-1 text-[11px] leading-relaxed">{item.message}</div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {config.enableSpanDistributedLoads === true && (
+                        <div className="col-span-2 rounded border border-emerald-200 bg-white/80 p-3 space-y-3">
+                          <div className="flex items-start justify-between gap-3 flex-wrap">
+                            <div>
+                              <div className="text-xs font-bold text-emerald-800">BẢNG TẢI PHÂN BỐ THEO TỪNG NHỊP (kPa)</div>
+                              <div className="text-[10px] text-gray-600 mt-1">Mỗi dòng là một nhịp độc lập. qG = tĩnh tải, qQ = hoạt tải dùng cho nhịp đó.</div>
+                            </div>
+                            <div className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-semibold text-emerald-800">Mode đang bật: Theo từng nhịp</div>
+                          </div>
+                          <div className="grid grid-cols-4 gap-2 text-[11px] font-semibold text-gray-600">
+                            <div>Nhịp</div>
+                            <div>Chiều dài</div>
+                            <div>Tĩnh tải qG</div>
+                            <div>Hoạt tải qQ</div>
+                          </div>
+                          {config.spans.map((span, idx) => {
+                            const rawDead = config.deadLoadBySpan_kPa?.[idx];
+                            const rawLive = config.liveLoadBySpan_kPa?.[idx];
+                            const deadMissing = rawDead === '' || rawDead === null || typeof rawDead === 'undefined';
+                            const liveMissing = rawLive === '' || rawLive === null || typeof rawLive === 'undefined';
+                            const qG = Number(rawDead || 0);
+                            const qQ = Number(rawLive || 0);
+                            const isNegative = qG < 0 || qQ < 0;
+                            const isZeroDead = qG === 0;
+                            const isEmptySpan = qG === 0 && qQ === 0;
+                            const rowTone = isNegative ? 'rose' : (deadMissing || liveMissing || isZeroDead) ? 'amber' : 'emerald';
+                            const rowClass = rowTone === 'rose'
+                              ? 'border-rose-200 bg-rose-50/80'
+                              : rowTone === 'amber'
+                                ? 'border-amber-200 bg-amber-50/80'
+                                : 'border-emerald-100 bg-emerald-50/40';
+                            const inputClass = rowTone === 'rose'
+                              ? 'border-rose-300 bg-white text-rose-900 focus:border-rose-400 focus:ring-rose-100'
+                              : rowTone === 'amber'
+                                ? 'border-amber-300 bg-white text-amber-900 focus:border-amber-400 focus:ring-amber-100'
+                                : 'border-slate-200 bg-white text-slate-900 focus:border-emerald-400 focus:ring-emerald-100';
+                            const helperText = isNegative
+                              ? 'Có tải âm, nên kiểm tra lại dấu nhập.'
+                              : deadMissing || liveMissing
+                                ? 'Ô trống hiện bị hiểu là 0.'
+                                : isEmptySpan
+                                  ? 'Cả qG và qQ đang về 0 ở nhịp này.'
+                                  : isZeroDead
+                                    ? 'Nhịp này đang có qG = 0.'
+                                    : 'Dòng này đã đủ dữ liệu để solver dùng trực tiếp.';
+
+                            return (
+                              <div key={`distributed-span-${idx}`} className={`grid grid-cols-4 gap-2 items-center rounded border p-2 transition-colors ${rowClass}`}>
+                                <div>
+                                  <div className="text-sm font-semibold text-gray-800">Nhịp {idx + 1}</div>
+                                  <div className="mt-1 flex flex-wrap gap-1">
+                                    {isNegative && <span className="rounded-full border border-rose-200 bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-800">Kiểm tra dấu</span>}
+                                    {!isNegative && (deadMissing || liveMissing) && <span className="rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">Ô trống → 0</span>}
+                                    {!isNegative && !deadMissing && !liveMissing && isEmptySpan && <span className="rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">Nhịp đang không tải</span>}
+                                    {!isNegative && !deadMissing && !liveMissing && !isEmptySpan && isZeroDead && <span className="rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">qG = 0</span>}
+                                  </div>
+                                </div>
+                                <div className="text-sm text-gray-700">
+                                  <div>{Number(span || 0).toFixed(2)} m</div>
+                                  <div className="mt-1 text-[10px] text-gray-500">{helperText}</div>
+                                </div>
+                                <div>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={config.deadLoadBySpan_kPa?.[idx] ?? 0}
+                                    onChange={(e) => handleDistributedLoadSpanChange('dead', idx, e.target.value)}
+                                    className={`w-full rounded border p-2 text-sm focus:outline-none focus:ring-2 ${inputClass}`}
+                                  />
+                                  <div className="mt-1 text-[10px] text-gray-500">qG của nhịp {idx + 1}</div>
+                                </div>
+                                <div>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={config.liveLoadBySpan_kPa?.[idx] ?? 0}
+                                    onChange={(e) => handleDistributedLoadSpanChange('live', idx, e.target.value)}
+                                    className={`w-full rounded border p-2 text-sm focus:outline-none focus:ring-2 ${inputClass}`}
+                                  />
+                                  <div className="mt-1 text-[10px] text-gray-500">qQ của nhịp {idx + 1}</div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                          <div className="rounded border border-emerald-100 bg-emerald-50 p-2 text-[10px] text-gray-700 space-y-1">
+                            <div><b>Cách hiểu:</b> hệ sẽ tính nội lực theo đúng bộ qG/qQ của từng nhịp; không còn giả định mọi nhịp nhận cùng một giá trị tải phân bố.</div>
+                            <div><b>Lưu ý hiện tại:</b> tải gió vẫn đang áp đều theo toàn dầm như flow hiện hữu.</div>
+                          </div>
                         </div>
                       )}
 
@@ -1262,6 +2797,8 @@ export default function GreenpanDesign_Final() {
         <div id="tab-report" className={activeTab === 'report' ? 'block' : 'hidden'}>
           <div className="w-full mx-auto bg-white p-8 shadow-lg print:shadow-none print:w-full print:max-w-none report-sheet">
             <ReportHeader />
+            <ExecutiveSummaryPanel results={results} compareSummary={results.compareSummary} />
+            <AssumptionsAndLimitationsPanel results={results} />
 
             <div className="mb-6 report-section">
               <h3 className="text-sm font-bold border-b border-gray-400 mb-2 uppercase flex items-center gap-2">
@@ -1279,8 +2816,8 @@ export default function GreenpanDesign_Final() {
                 <div className="flex justify-between"><span>Mô đun cắt lõi Gc:</span> <b>{config.coreShearModulus} MPa</b></div>
                 <div className="flex justify-between"><span>Mô đun nén lõi Ec:</span> <b>{config.compressiveModulus} MPa</b></div>
                 <div className="flex justify-between"><span>Hệ số kappa:</span> <b>{config.kappaShear}</b></div>
-                <div className="flex justify-between"><span>Chế độ kiểm tra nhăn:</span> <b>{getModeLabel(results.wrinklingMode, WRINKLING_MODE_LABELS)}</b></div>
-                <div className="flex justify-between"><span>Chế độ phân phối nội lực:</span> <b>{getModeLabel(results.redistributionMode, REDISTRIBUTION_MODE_LABELS)}</b></div>
+                <div className="flex justify-between"><span>Chế độ kiểm tra wrinkling:</span> <b>{getModeLabel(results.wrinklingMode, WRINKLING_MODE_LABELS)}</b></div>
+                <div className="flex justify-between"><span>Phân phối nội lực:</span> <b>{getModeLabel(results.redistributionMode, REDISTRIBUTION_MODE_LABELS)}</b></div>
                 <div className="flex justify-between"><span>Tải trọng gió/áp suất:</span> <b>{config.windPressure} kPa ({getModeLabel(config.windDirection, WIND_DIRECTION_LABELS)})</b></div>
                 <div className="flex justify-between"><span>Chênh lệch nhiệt độ:</span> <b>{Math.abs(config.tempOut - config.tempIn)} °C</b></div>
                 <div className="flex justify-between"><span>Hệ số nhiệt γT:</span> <b>{config.gammaF_thermal}</b></div>
@@ -1290,6 +2827,21 @@ export default function GreenpanDesign_Final() {
                   <div className="flex justify-between"><span>Khoảng cách vít:</span> <b>{config.screwSpacing} mm</b></div>
                 )}
                 <div className="flex justify-between"><span>Giới hạn độ võng:</span> <b>L/{results.limitDenom}</b></div>
+                {config.panelType === 'ceiling' && (
+                  <div className="flex justify-between"><span>Chế độ tải phân bố:</span> <b>{results.distributedLoadMode === 'per-span' ? 'Theo từng nhịp' : 'Một giá trị chung'}</b></div>
+                )}
+                {config.panelType === 'ceiling' && results.distributedLoadMode === 'per-span' && (
+                  <div className="col-span-2 rounded border border-sky-200 bg-sky-50 p-3 space-y-2">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="text-xs font-bold text-sky-800">TÓM TẮT TẢI THEO TỪNG NHỊP</div>
+                      <div className="text-[10px] font-semibold text-sky-700">Đang dùng dữ liệu per-span để tính nội lực</div>
+                    </div>
+                    <div className="grid gap-2 md:grid-cols-2">
+                      <div className="text-[11px] text-slate-700">qG theo nhịp: <b>{formatSpanLoadSummary(results.qDeadBySpan_kPa).join(' · ')}</b></div>
+                      <div className="text-[11px] text-slate-700">qQ theo nhịp: <b>{formatSpanLoadSummary(results.qLiveBySpan_kPa).join(' · ')}</b></div>
+                    </div>
+                  </div>
+                )}
 
                 {(config.panelType === 'ceiling' || (config.panelType === 'internal' && config.internalWallType === 'cold_storage')) && (
                   <div className="flex justify-between"><span>Hệ số từ biến (φ/φb):</span> <b>{config.creepFactor} / {config.creepFactorBending}</b></div>
@@ -1422,23 +2974,103 @@ export default function GreenpanDesign_Final() {
                 </table>
 
                 <div className="p-2 bg-blue-50 rounded border border-blue-200 mt-2 text-[10px] font-mono">
-                  <p><strong>Tổ hợp ULS:</strong> q<sub>ULS</sub> = {results.gammaG}×{results.qDead_kPa.toFixed(3)} + {results.gammaQ}×{results.qLive_kPa.toFixed(2)} + 2.1×{Math.abs(results.qWind_kPa).toFixed(2)} = <b>{results.qULS_kPa.toFixed(3)} kPa</b></p>
-                  <p><strong>Tổ hợp SLS:</strong> q<sub>SLS</sub> = {results.qDead_kPa.toFixed(3)} + {results.qLive_kPa.toFixed(2)} + {Math.abs(results.qWind_kPa).toFixed(2)} = <b>{results.qSLS_kPa.toFixed(3)} kPa</b></p>
+                  {results.distributedLoadMode === 'per-span' ? (
+                    <>
+                      <p><strong>Chế độ tải phân bố:</strong> đang dùng <b>theo từng nhịp</b>; mỗi nhịp có bộ qG/qQ riêng trước khi lập tổ hợp.</p>
+                      <div className="overflow-x-auto mt-2">
+                        <table className="w-full border-collapse border border-blue-200 text-[10px]">
+                          <thead className="bg-blue-100">
+                            <tr>
+                              <th className="border border-blue-200 p-1 text-left">Nhịp</th>
+                              <th className="border border-blue-200 p-1 text-center">qG (kPa)</th>
+                              <th className="border border-blue-200 p-1 text-center">qQ (kPa)</th>
+                              <th className="border border-blue-200 p-1 text-center">qSLS = qG + qQ</th>
+                              <th className="border border-blue-200 p-1 text-center">qULS = γG·qG + γQ·qQ</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {distributedLoadRows.map((row) => {
+                              const tone = PER_SPAN_ROW_TONE[row.tone] || PER_SPAN_ROW_TONE.neutral;
+                              return (
+                                <tr key={row.spanLabel} className={tone.row}>
+                                  <td className={`border border-blue-200 p-1 font-semibold ${tone.emphasis}`}>
+                                    <div className="flex flex-wrap items-center gap-1">
+                                      <span>{row.spanLabel}</span>
+                                      {row.badges.map((badge) => {
+                                        const badgeTone = PER_SPAN_ROW_TONE[badge.tone] || PER_SPAN_ROW_TONE.neutral;
+                                        return (
+                                          <span key={`${row.spanLabel}-${badge.label}`} className={`rounded-full border px-1.5 py-0.5 text-[9px] font-semibold ${badgeTone.badge}`}>
+                                            {badge.label}
+                                          </span>
+                                        );
+                                      })}
+                                    </div>
+                                  </td>
+                                  <td className={`border border-blue-200 p-1 text-center ${tone.cell}`}>{row.qG.toFixed(3)}</td>
+                                  <td className={`border border-blue-200 p-1 text-center ${tone.cell}`}>{row.qQ.toFixed(3)}</td>
+                                  <td className={`border border-blue-200 p-1 text-center font-semibold ${tone.emphasis}`}>{row.qSLS.toFixed(3)}</td>
+                                  <td className={`border border-blue-200 p-1 text-center font-semibold ${tone.emphasis}`}>{row.qULS.toFixed(3)}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div className="mt-2 rounded border border-blue-200 bg-white/70 p-2 space-y-1">
+                        <div className="text-[10px] font-semibold text-blue-800">Nhịp nào nên kiểm tra lại</div>
+                        <ul className="space-y-1">
+                          {perSpanSummaryItems.map((item, idx) => {
+                            const toneClass = item.tone === 'danger'
+                              ? 'text-rose-700'
+                              : item.tone === 'warning'
+                                ? 'text-amber-700'
+                                : item.tone === 'info'
+                                  ? 'text-sky-700'
+                                  : 'text-slate-700';
+                            return (
+                              <li key={`per-span-summary-${idx}`} className={`flex gap-2 text-[10px] leading-relaxed ${toneClass}`}>
+                                <span className="mt-[2px] h-1.5 w-1.5 rounded-full bg-current" />
+                                <span>{item.text}</span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                      <p className="mt-2"><strong>Giá trị điều khiển đang dùng cho báo cáo tổng:</strong> q<sub>ULS,max</sub> = <b>{results.qULS_kPa.toFixed(3)} kPa</b>; q<sub>SLS,max</sub> = <b>{results.qSLS_kPa.toFixed(3)} kPa</b>.</p>
+                    </>
+                  ) : (
+                    <>
+                      <p><strong>Tổ hợp ULS:</strong> q<sub>ULS</sub> = {results.gammaG}×{results.qDead_kPa.toFixed(3)} + {results.gammaQ}×{results.qLive_kPa.toFixed(2)} + 2.1×{Math.abs(results.qWind_kPa).toFixed(2)} = <b>{results.qULS_kPa.toFixed(3)} kPa</b></p>
+                      <p><strong>Tổ hợp SLS:</strong> q<sub>SLS</sub> = {results.qDead_kPa.toFixed(3)} + {results.qLive_kPa.toFixed(2)} + {Math.abs(results.qWind_kPa).toFixed(2)} = <b>{results.qSLS_kPa.toFixed(3)} kPa</b></p>
+                    </>
+                  )}
                   <p><strong>Mô-men nhiệt (ULS):</strong> M<sub>t</sub> = EI·α·ΔT·γ<sub>T</sub>/e = {(results.EI / 1e9).toFixed(2)}×10⁹ × 1.2×10⁻⁵ × {Math.abs(results.dT_deg)} × {results.gammaThermal} / {results.e.toFixed(1)} = <b>{results.Mt_ULS_kNm.toFixed(3)} kNm/m</b></p>
                 </div>
 
-                <h4 className="font-bold text-blue-800 mt-3">2.4 Kiểm tra ứng suất uốn (ULS)</h4>
+                <h4 className="font-bold text-blue-800 mt-3">2.4 Kiểm tra ứng suất uốn & wrinkling (ULS)</h4>
                 <div className="p-2 bg-gray-50 rounded border border-gray-200 mt-1 text-[10px] font-mono space-y-1">
-                  <p><strong>Chế độ kiểm tra nhăn:</strong> {getModeLabel(results.wrinklingMode, WRINKLING_MODE_LABELS)} {results.sigma_w_source ? `(nguồn: ${getModeLabel(results.sigma_w_source, WRINKLING_SOURCE_LABELS)})` : ''}</p>
+                  <p><strong>Chế độ kiểm tra wrinkling:</strong> {getModeLabel(results.wrinklingMode, WRINKLING_MODE_LABELS)} {results.sigma_w_source ? `(nguồn: ${getModeLabel(results.sigma_w_source, WRINKLING_SOURCE_LABELS)})` : ''}</p>
                   {results.wrinklingDeclaredMissing && (
-                    <p className="text-amber-700"><strong>Cảnh báo dữ liệu đầu vào:</strong> đã chọn chế độ khai báo trực tiếp nhưng thiếu ứng suất nhăn hợp lệ; hệ thống đang tạm kiểm tra theo <b>{getModeLabel(results.wrinklingFallbackMode, WRINKLING_MODE_LABELS)}</b>.</p>
+                    <p className="text-amber-700"><strong>Cảnh báo dữ liệu đầu vào:</strong> đã chọn chế độ khai báo trực tiếp nhưng thiếu ứng suất wrinkling hợp lệ; hệ thống đang fallback tạm sang <b>{getModeLabel(results.wrinklingFallbackMode, WRINKLING_MODE_LABELS)}</b>.</p>
                   )}
-                  <p><strong>Ứng suất nhăn xấp xỉ:</strong> σ<sub>w,approx</sub> = 0.5√(E<sub>f</sub>·E<sub>c</sub>·G<sub>c</sub>) = 0.5×√(210000×{results.compressiveModulus}×{config.coreShearModulus}) = <b>{results.sigma_w_approx.toFixed(1)} MPa</b></p>
-                  <p><strong>Ứng suất nhăn khai báo:</strong> σ<sub>w,declared</sub> = <b>{results.sigma_w_declared.toFixed(1)} MPa</b></p>
-                  <p><strong>Ứng suất nhăn dùng trong kiểm tra:</strong> σ<sub>w</sub> = <b>{results.sigma_w.toFixed(1)} MPa</b></p>
-                  <p><strong>Thiết kế nhăn:</strong> σ<sub>w,d</sub> = σ<sub>w</sub>/γ<sub>M,w</sub> = {results.sigma_w.toFixed(1)}/1.2 = <b>{results.sigma_w_design.toFixed(1)} MPa</b></p>
+                  <p><strong>Ứng suất wrinkling xấp xỉ:</strong> σ<sub>w,approx</sub> = 0.5√(E<sub>f</sub>·E<sub>c</sub>·G<sub>c</sub>) = 0.5×√(210000×{results.compressiveModulus}×{config.coreShearModulus}) = <b>{results.sigma_w_approx.toFixed(1)} MPa</b></p>
+                  <p className="text-slate-500"><strong>Ghi chú provenance approx:</strong> hệ số <b>0.5</b> và bộ biến <b>E<sub>f</sub>, E<sub>c</sub>, G<sub>c</sub></b> hiện đã được externalize là <b>xấp xỉ kỹ thuật nội bộ</b>; repo <b>chưa có citation trực tiếp</b> để nâng thành công thức source-backed.</p>
+                  <p><strong>Ứng suất wrinkling khai báo:</strong> σ<sub>w,declared</sub> = <b>{results.sigma_w_declared.toFixed(1)} {results?.wrinklingMeta?.declaredInput?.unit || 'MPa'}</b></p>
+                  <p><strong>Semantic giá trị khai báo:</strong> {results?.wrinklingMeta?.declaredInput?.basis || 'design-resistance'} / {results?.wrinklingMeta?.declaredInput?.sourceType || 'unknown'} {results?.wrinklingMeta?.declaredInput?.sourceRef ? `(ref: ${results.wrinklingMeta.declaredInput.sourceRef})` : ''}</p>
+                  {results?.wrinklingMeta?.declaredInput?.productContext && (
+                    <p><strong>Context sản phẩm:</strong> {results.wrinklingMeta.declaredInput.productContext}</p>
+                  )}
+                  {results?.wrinklingMeta?.declaredInput?.sourceNote && (
+                    <p><strong>Ghi chú nguồn:</strong> {results.wrinklingMeta.declaredInput.sourceNote}</p>
+                  )}
+                  <p className="text-slate-500"><strong>Ghi chú provenance declared:</strong> khi chọn <b>Khai báo trực tiếp</b>, repo giữ con số MPa ở trạng thái <b>user-declared</b> trừ khi có đúng table/test/worksheet chứa giá trị đó. Repo hiện đã có thêm một vendor technical guide cấp product-family nêu rõ failure mode <b>“wrinkling of the face layer in the span and at an intermediate support”</b>, nên basis/source framing đỡ mơ hồ hơn; nhưng đợt hunt artifact hiện tại vẫn <b>chưa tìm được</b> vendor MPa table, test report, archived worksheet, hay product-manual numeric line đủ mạnh để nâng con số MPa declared này thành source-backed.</p>
+                  <p><strong>Ứng suất wrinkling dùng trong kiểm tra:</strong> σ<sub>w</sub> = <b>{results.sigma_w.toFixed(1)} MPa</b></p>
+                  <p><strong>Ứng suất thiết kế wrinkling:</strong> σ<sub>w,d</sub> = σ<sub>w</sub>/γ<sub>M,w</sub> = {results.sigma_w.toFixed(1)}/{results?.wrinklingMeta?.factorProvenance?.value || 1.2} = <b>{results.sigma_w_design.toFixed(1)} MPa</b></p>
+                  <p className="text-slate-500"><strong>Ghi chú provenance γ<sub>M,w</sub>:</strong> repo hiện áp dụng γ<sub>M,w</sub> = <b>{results?.wrinklingMeta?.factorProvenance?.value || 1.2}</b> nhất quán, nhưng chưa source-link được giá trị này tới clause/vendor/worksheet chấp nhận.</p>
                   <p><strong>Thiết kế chảy:</strong> σ<sub>y,d</sub> = f<sub>y</sub>/γ<sub>M,y</sub> = {config.steelYield}/1.1 = <b>{results.sigma_y_design.toFixed(1)} MPa</b></p>
-                  <p><strong>Giới hạn:</strong> σ<sub>limit</sub> = min(σ<sub>w,d</sub>, σ<sub>y,d</sub>) = min({results.sigma_w_design.toFixed(1)}, {results.sigma_y_design.toFixed(1)}) = <b>{results.sigma_limit.toFixed(1)} MPa</b></p>
+                  <p><strong>Giới hạn:</strong> {results?.effectiveWrinklingMode === 'yield-only'
+                    ? <>σ<sub>limit</sub> = σ<sub>y,d</sub> = <b>{results.sigma_limit.toFixed(1)} MPa</b></>
+                    : <>σ<sub>limit</sub> = min(σ<sub>w,d</sub>, σ<sub>y,d</sub>) = min({results.sigma_w_design.toFixed(1)}, {results.sigma_y_design.toFixed(1)}) = <b>{results.sigma_limit.toFixed(1)} MPa</b></>}</p>
                   <p><strong>Ứng suất tính toán (Nhịp):</strong> σ<sub>Ed</sub> = M<sub>Ed</sub>·z<sub>max</sub>/I<sub>eq</sub> = <b>{results.stress_span.toFixed(1)} MPa</b> → Tỷ lệ = <b>{(results.ratios.bending * 100).toFixed(0)}%</b></p>
                   <p><strong>Ứng suất tính toán (Gối):</strong> σ<sub>Ed</sub> = <b>{results.stress_support.toFixed(1)} MPa</b> → Tỷ lệ = <b>{(results.ratios.support * 100).toFixed(0)}%</b></p>
                 </div>
@@ -1458,16 +3090,35 @@ export default function GreenpanDesign_Final() {
                   <p><strong>Tỷ lệ:</strong> w<sub>total</sub>/w<sub>limit</sub> = {results.maxDeflection.toFixed(1)}/{results.w_limit.toFixed(1)} = <b>{(results.ratios.deflection * 100).toFixed(0)}%</b></p>
                 </div>
 
-                <h4 className="font-bold text-blue-800 mt-3">2.7 Trường hợp chi phối</h4>
-                <div className="p-2 bg-amber-50 rounded border border-amber-200 mt-1 text-[10px] font-mono space-y-1">
-                  <p><strong>Mô-men:</strong> {results.governingCases?.moment?.label} — {(results.governingCases?.moment?.ratio * 100).toFixed(0)}%</p>
-                  <p><strong>Lực cắt:</strong> {results.governingCases?.shear?.label} — {(results.governingCases?.shear?.ratio * 100).toFixed(0)}%</p>
-                  <p><strong>Độ võng:</strong> {results.governingCases?.deflection?.label} — {(results.governingCases?.deflection?.ratio * 100).toFixed(0)}%</p>
-                  <p><strong>Chống nhổ:</strong> {results.governingCases?.uplift?.label} — {(results.governingCases?.uplift?.ratio * 100).toFixed(0)}%</p>
-                  <p><strong>Tổng thể:</strong> {results.governingCases?.overall?.label} — {(results.governingCases?.overall?.ratio * 100).toFixed(0)}%</p>
+                <h4 className="font-bold text-blue-800 mt-3">2.7 Kiểm tra lực nhổ / liên kết chống nhổ (ULS)</h4>
+                <div className="p-2 bg-gray-50 rounded border border-gray-200 mt-1 text-[10px] font-mono space-y-1">
+                  <p><strong>Phạm vi kiểm tra uplift:</strong> {results.upliftEnabled ? 'Đang bật vì panel không phải ceiling và có screwStrength > 0.' : 'Không áp dụng cho case hiện tại.'}</p>
+                  <p><strong>screwStrength khai báo:</strong> <b>{Number(results?.technicalTransparency?.uplift?.declaredInput?.value || 0).toFixed(2)} {results?.technicalTransparency?.uplift?.declaredInput?.unit || 'kN'}</b> / mỗi vít</p>
+                  <p><strong>Semantic giá trị khai báo:</strong> {results?.technicalTransparency?.uplift?.declaredInput?.basis || 'design-resistance-per-fastener'} / {results?.technicalTransparency?.uplift?.declaredInput?.sourceType || 'unknown'} {results?.technicalTransparency?.uplift?.declaredInput?.sourceRef ? `(ref: ${results.technicalTransparency.uplift.declaredInput.sourceRef})` : ''}</p>
+                  {results?.technicalTransparency?.uplift?.declaredInput?.fastenerContext && (
+                    <p><strong>Context vít/liên kết:</strong> {results.technicalTransparency.uplift.declaredInput.fastenerContext}</p>
+                  )}
+                  {results?.technicalTransparency?.uplift?.declaredInput?.sourceNote && (
+                    <p><strong>Ghi chú nguồn:</strong> {results.technicalTransparency.uplift.declaredInput.sourceNote}</p>
+                  )}
+                  {!results?.technicalTransparency?.uplift?.declaredInput?.isSourceDocumented && results.upliftEnabled && (
+                    <p className="text-slate-500"><strong>Ghi chú provenance screwStrength:</strong> hiện <b>chưa có documented source</b> cho con số kN đang dùng, nên repo chỉ coi đây là <b>user-declared per-fastener resistance</b>, chưa nâng thành source-backed capacity. T3 artifact hunt chỉ tìm được vendor installation guidance xác nhận fastening phải được dimension case-by-case theo <b>fastener-manufacturer instructions / research results</b>; đây là acquisition-path context, không phải numeric authority cho chính giá trị kN.</p>
+                  )}
+                  <p><strong>Quy tắc đếm vít hiện hành:</strong> {results?.technicalTransparency?.uplift?.declaredInput?.spacingMeaning || results?.technicalTransparency?.uplift?.inputSchema?.spacingMeaning || 'spacing across panelWidth for simplified count estimate'} → screwCount = <b>{results.screwCount}</b></p>
+                  <p><strong>Sức kháng thiết kế uplift:</strong> T<sub>Rd</sub> = screwStrength × screwCount / γ<sub>M,screw</sub> = {Number(results?.technicalTransparency?.uplift?.declaredInput?.value || 0).toFixed(2)} × {results.screwCount} / {results?.technicalTransparency?.uplift?.factor?.value || 1.33} = <b>{(results.T_Rd_Worst / 1000).toFixed(2)} kN</b></p>
+                  <p className="text-slate-500"><strong>Ghi chú provenance γ<sub>M,screw</sub> & count rule:</strong> repo externalize rõ <b>γ<sub>M,screw</sub></b> và rule <b>round(panelWidth / screwSpacing)</b>, nhưng cả hai hiện vẫn là <b>implementation-visible source gap</b>; chưa có clause/vendor worksheet được attach để nâng authority.</p>
                 </div>
 
-                <h4 className="font-bold text-blue-800 mt-3">2.8 Kết quả tổng hợp</h4>
+                <h4 className="font-bold text-blue-800 mt-3">2.8 Trường hợp chi phối</h4>
+                <div className="p-2 bg-amber-50 rounded border border-amber-200 mt-1 text-[10px] font-mono space-y-1">
+                  {governingCaseRows.map(({ caseKey, item }) => (
+                    <p key={caseKey}>
+                      <strong>{caseKey === CAPACITY_GOVERNING_CASE_KEYS.OVERALL ? 'Tổng thể' : getCapacityLabel(caseKey, caseKey)}:</strong> {item.label} — {(item.ratio * 100).toFixed(0)}%
+                    </p>
+                  ))}
+                </div>
+
+                <h4 className="font-bold text-blue-800 mt-3">2.9 Kết quả tổng hợp</h4>
                 <table className="w-full text-xs border-collapse border border-gray-300 mt-1">
                   <thead className="bg-gray-100 font-bold text-gray-700">
                     <tr>
@@ -1479,50 +3130,15 @@ export default function GreenpanDesign_Final() {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td className="border p-2">Ứng suất Uốn (Nhịp)</td>
-                      <td className="border p-2 text-center">{results.stress_span.toFixed(1)} MPa</td>
-                      <td className="border p-2 text-center">{results.sigma_limit.toFixed(1)} MPa</td>
-                      <td className={`border p-2 text-center font-bold ${results.ratios.bending > 1 ? 'text-red-600' : 'text-green-600'}`}>{(results.ratios.bending * 100).toFixed(0)}%</td>
-                      <td className={`border p-2 text-center font-bold ${results.ratios.bending <= 1 ? 'text-green-600' : 'text-red-600'}`}>{results.ratios.bending <= 1 ? 'ĐẠT' : 'KHÔNG ĐẠT'}</td>
-                    </tr>
-                    <tr>
-                      <td className="border p-2">Ứng suất Uốn (Gối)</td>
-                      <td className="border p-2 text-center">{results.stress_support.toFixed(1)} MPa</td>
-                      <td className="border p-2 text-center">{results.sigma_limit.toFixed(1)} MPa</td>
-                      <td className={`border p-2 text-center font-bold ${results.ratios.support > 1 ? 'text-red-600' : 'text-green-600'}`}>{(results.ratios.support * 100).toFixed(0)}%</td>
-                      <td className={`border p-2 text-center font-bold ${results.ratios.support <= 1 ? 'text-green-600' : 'text-red-600'}`}>{results.ratios.support <= 1 ? 'ĐẠT' : 'KHÔNG ĐẠT'}</td>
-                    </tr>
-                    <tr>
-                      <td className="border p-2">Lực Cắt Lõi (Max)</td>
-                      <td className="border p-2 text-center">{(results.maxShear / 1000).toFixed(2)} kN</td>
-                      <td className="border p-2 text-center">{(results.V_Rd / 1000).toFixed(2)} kN</td>
-                      <td className={`border p-2 text-center font-bold ${results.ratios.shear > 1 ? 'text-red-600' : 'text-green-600'}`}>{(results.ratios.shear * 100).toFixed(0)}%</td>
-                      <td className={`border p-2 text-center font-bold ${results.ratios.shear <= 1 ? 'text-green-600' : 'text-red-600'}`}>{results.ratios.shear <= 1 ? 'ĐẠT' : 'KHÔNG ĐẠT'}</td>
-                    </tr>
-                    <tr>
-                      <td className="border p-2">Biểu đồ phản lực gối (Max)</td>
-                      <td className="border p-2 text-center">{(results.maxReaction / 1000).toFixed(2)} kN</td>
-                      <td className="border p-2 text-center">{(results.F_Rd_Worst / 1000).toFixed(2)} kN</td>
-                      <td className={`border p-2 text-center font-bold ${results.ratios.crushing > 1 ? 'text-red-600' : 'text-green-600'}`}>{(results.ratios.crushing * 100).toFixed(0)}%</td>
-                      <td className={`border p-2 text-center font-bold ${results.ratios.crushing <= 1 ? 'text-green-600' : 'text-red-600'}`}>{results.ratios.crushing <= 1 ? 'ĐẠT' : 'KHÔNG ĐẠT'}</td>
-                    </tr>
-                    {config.panelType !== 'ceiling' && (
-                      <tr>
-                        <td className="border p-2">Liên kết chống nhổ (Uplift)</td>
-                        <td className="border p-2 text-center">{(results.maxUplift / 1000).toFixed(2)} kN</td>
-                        <td className="border p-2 text-center">{(results.T_Rd_Worst / 1000).toFixed(2)} kN</td>
-                        <td className={`border p-2 text-center font-bold ${results.ratios.uplift > 1 ? 'text-red-600' : 'text-green-600'}`}>{(results.ratios.uplift * 100).toFixed(0)}%</td>
-                        <td className={`border p-2 text-center font-bold ${results.ratios.uplift <= 1 ? 'text-green-600' : 'text-red-600'}`}>{results.ratios.uplift <= 1 ? 'ĐẠT' : 'KHÔNG ĐẠT'}</td>
+                    {capacityReportRows.map((row) => (
+                      <tr key={row.key}>
+                        <td className="border p-2">{row.label}</td>
+                        <td className="border p-2 text-center">{row.demand}</td>
+                        <td className="border p-2 text-center">{row.resistance}</td>
+                        <td className={`border p-2 text-center font-bold ${row.ratio > 1 ? 'text-red-600' : 'text-green-600'}`}>{(row.ratio * 100).toFixed(0)}%</td>
+                        <td className={`border p-2 text-center font-bold ${row.ratio <= 1 ? 'text-green-600' : 'text-red-600'}`}>{row.ratio <= 1 ? 'ĐẠT' : 'KHÔNG ĐẠT'}</td>
                       </tr>
-                    )}
-                    <tr>
-                      <td className="border p-2">Độ Võng (SLS)</td>
-                      <td className="border p-2 text-center">{results.maxDeflection.toFixed(1)} mm</td>
-                      <td className="border p-2 text-center">{results.w_limit.toFixed(1)} mm (L/{results.limitDenom})</td>
-                      <td className={`border p-2 text-center font-bold ${results.ratios.deflection > 1 ? 'text-red-600' : 'text-green-600'}`}>{(results.ratios.deflection * 100).toFixed(0)}%</td>
-                      <td className={`border p-2 text-center font-bold ${results.ratios.deflection <= 1 ? 'text-green-600' : 'text-red-600'}`}>{results.ratios.deflection <= 1 ? 'ĐẠT' : 'KHÔNG ĐẠT'}</td>
-                    </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -1898,19 +3514,95 @@ export default function GreenpanDesign_Final() {
               </div>
             </div>
 
+            {compareModeEnabled && compareMetricRows.length > 0 && (
+              <div className="mb-6 report-section">
+                <h3 className="text-sm font-bold border-b border-gray-400 mb-3 uppercase flex items-center gap-2">
+                  <Activity size={14} /> 4. So sánh phương án
+                </h3>
+                <div className="rounded border border-violet-200 bg-violet-50 p-3">
+                  <div className="text-xs text-violet-900 mb-3">Bảng này gom ngắn gọn các chỉ tiêu quyết định để so 2–3 phương án song song, không thay flow báo cáo chi tiết của phương án đang mở.</div>
+                  {results.compareSummary?.available && (
+                    <div className="mb-3 grid gap-2 md:grid-cols-3 text-xs">
+                      <div className="rounded-lg border border-violet-200 bg-white px-3 py-2">
+                        <div className="text-violet-500">Phương án nên đọc trước</div>
+                        <div className="mt-1 font-bold text-violet-900">{results.compareSummary.bestVariantLabel || '—'}</div>
+                        <div className="text-[11px] text-slate-500">{results.compareSummary.bestStatus === 'pass' ? 'Đạt' : 'Không đạt'} · {results.compareSummary.bestRatio != null ? formatRatioPercent(results.compareSummary.bestRatio) : '—'}{results.compareSummary.bestMarginPercent != null ? ` · margin ${results.compareSummary.bestMarginPercent.toFixed(1)}%` : ''}</div>
+                      </div>
+                      <div className="rounded-lg border border-violet-200 bg-white px-3 py-2">
+                        <div className="text-violet-500">Tổng số phương án đạt</div>
+                        <div className="mt-1 font-bold text-violet-900">{results.compareSummary.passCount}/{results.compareSummary.variantCount}</div>
+                        <div className="text-[11px] text-slate-500">{results.compareSummary.allPass ? 'Tất cả phương án đều đạt.' : results.compareSummary.mixedStatus ? 'Có phương án đạt, có phương án không đạt.' : 'Chưa có phương án nào đạt hoàn toàn.'}</div>
+                      </div>
+                      <div className="rounded-lg border border-violet-200 bg-white px-3 py-2">
+                        <div className="text-violet-500">Case chi phối của PA ưu tiên</div>
+                        <div className="mt-1 font-bold text-violet-900">{results.compareSummary.bestGoverningLabel || '—'}</div>
+                        <div className="text-[11px] text-slate-500">{results.compareSummary.rationale || 'Tóm tắt để chốt shortlist trước khi xem bảng chi tiết.'}</div>
+                      </div>
+                    </div>
+                  )}
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse text-xs bg-white">
+                      <thead>
+                        <tr className="bg-violet-100 text-violet-950">
+                          <th className="border border-violet-200 p-2 text-left">Chỉ tiêu</th>
+                          {compareResults.map((variant) => (
+                            <th key={`report-compare-${variant.id}`} className="border border-violet-200 p-2 text-left">{variant.label}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {compareMetricRows.map((row) => (
+                          <tr key={`report-row-${row.key}`}>
+                            <td className="border border-violet-200 p-2 font-semibold text-slate-700">{row.label}</td>
+                            {row.values.map((cell) => {
+                              const toneClass = cell.tone === 'pass'
+                                ? 'text-emerald-700'
+                                : cell.tone === 'fail'
+                                  ? 'text-rose-700'
+                                  : cell.tone === 'muted'
+                                    ? 'text-slate-400'
+                                    : 'text-slate-800';
+                              return (
+                                <td key={`report-cell-${row.key}-${cell.variantId}`} className={`border border-violet-200 p-2 font-semibold ${cell.isBest ? 'bg-emerald-50/70' : ''} ${toneClass}`.trim()}>
+                                  <div className="flex items-center gap-2">
+                                    <span>{cell.value}</span>
+                                    {cell.isBest && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">Best</span>}
+                                  </div>
+                                  {cell.subValue && <div className="text-[10px] font-medium text-slate-500">{cell.subValue}</div>}
+                                  {cell.diffHint && <div className="text-[10px] font-medium text-slate-500">{cell.diffHint}</div>}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="bg-slate-50 p-4 rounded border border-slate-200 report-section report-conclusion">
-              <h3 className="text-sm font-bold uppercase mb-2 text-slate-700 flex items-center gap-2"><Info size={14} /> 5. Kết luận & Kiến nghị</h3>
-              <div className="space-y-2">
+              <h3 className="text-sm font-bold uppercase mb-2 text-slate-700 flex items-center gap-2"><Info size={14} /> 5. Kết luận & khuyến nghị</h3>
+              <div className="space-y-3">
                 <div className={`font-bold text-sm ${results.status === 'pass' ? 'text-green-700' : 'text-red-700'}`}>
                   {results.status === 'pass' ? 'KẾT CẤU ĐẢM BẢO KHẢ NĂNG CHỊU LỰC' : 'KẾT CẤU KHÔNG ĐẠT YÊU CẦU - CẦN ĐIỀU CHỈNH'}
                 </div>
+                <TransparencyPanel results={results} />
                 <ul className="list-disc list-inside text-xs space-y-1 text-slate-600">
                   {results.advice.map((item, i) => (<li key={i}>{item}</li>))}
                 </ul>
               </div>
             </div>
 
-            <div className="mt-8 flex justify-center print:hidden">
+            <div className="mt-8 flex flex-wrap justify-center gap-3 print:hidden">
+              <button
+                type="button"
+                onClick={handleExportPackage}
+                className="rounded-lg border border-emerald-300 bg-emerald-50 px-5 py-2 font-bold text-emerald-800 shadow hover:bg-emerald-100 flex items-center gap-2 transition-colors"
+              >
+                <FileJson size={18} />Xuất result package JSON (release-stamped)
+              </button>
               <button
                 onClick={handlePrint}
                 className="bg-red-600 text-white px-6 py-2 rounded-lg font-bold shadow hover:bg-red-700 flex items-center gap-2 transition-colors"
@@ -1919,8 +3611,9 @@ export default function GreenpanDesign_Final() {
               </button>
             </div>
 
-            <div className="mt-8 text-[10px] text-center text-slate-400 italic">
-              Báo cáo được tạo tự động bởi phần mềm Greenpan Design.
+            <div className="mt-8 text-[10px] text-center text-slate-400 italic space-y-1">
+              <div>Báo cáo được tạo tự động bởi phần mềm {APP_DISPLAY_NAME}.</div>
+              <div>{buildReleaseStamp(resolvedAppVersion)} · channel: {resolvedReleaseChannel}</div>
             </div>
           </div>
         </div>
