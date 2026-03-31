@@ -1,6 +1,10 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
+const packageJson = require('./package.json');
+
+const APP_DISPLAY_NAME = packageJson?.build?.productName || packageJson?.productName || 'Greenpan Design';
+const APP_VERSION = packageJson?.version || app.getVersion();
 
 let mainWindow;
 
@@ -8,7 +12,7 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
-    title: "Greenpan Design",
+    title: `${APP_DISPLAY_NAME} v${APP_VERSION}`,
     icon: path.join(__dirname, 'dist', 'logo_app.ico'),
     webPreferences: {
 
@@ -23,13 +27,26 @@ function createWindow() {
 }
 
 ipcMain.handle('app-version', () => app.getVersion());
+ipcMain.handle('release-meta', () => ({
+  appDisplayName: APP_DISPLAY_NAME,
+  appVersion: app.getVersion(),
+  releaseChannel: app.getVersion().includes('-') ? 'pre-release' : 'stable',
+  releaseStamp: `${APP_DISPLAY_NAME} v${app.getVersion()}`,
+}));
 
 function sendUpdateStatus(event, payload = {}) {
   if (!mainWindow || mainWindow.isDestroyed()) {
     return;
   }
 
-  mainWindow.webContents.send('auto-update', { event, ...payload, appVersion: app.getVersion() });
+  mainWindow.webContents.send('auto-update', {
+    event,
+    ...payload,
+    appVersion: app.getVersion(),
+    appDisplayName: APP_DISPLAY_NAME,
+    releaseChannel: app.getVersion().includes('-') ? 'pre-release' : 'stable',
+    releaseStamp: `${APP_DISPLAY_NAME} v${app.getVersion()}`,
+  });
 }
 
 function initAutoUpdater() {

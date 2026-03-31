@@ -9,9 +9,11 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "dist": "vite build && electron-builder",
-    "release": "semantic-release",
-    "test:regression": "node --test tests/regression/*.test.mjs"
+    "test:regression": "node --test tests/regression/*.test.mjs",
+    "ci:check": "npm run build && npm run test:regression",
+    "ci:check:full": "npm run lint && npm run build && npm run test:regression",
+    "dist": "npm run build && electron-builder",
+    "release": "semantic-release"
   },
   "dependencies": {
     "electron-updater": "^6.1.8",
@@ -43,7 +45,7 @@
   "build": {
     "appId": "com.greenpan.design",
     "productName": "Greenpan Design",
-    "artifactName": "Greenpan-Design-Setup-${version}.${ext}",
+    "artifactName": "Greenpan-Design-Setup-${version}-${channel}.${ext}",
     "directories": {
       "output": "release"
     },
@@ -62,6 +64,10 @@
       "allowToChangeInstallationDirectory": true,
       "installerIcon": "public/logo_app.ico",
       "uninstallerIcon": "public/logo_app.ico"
+    },
+    "extraMetadata": {
+      "productName": "Greenpan Design",
+      "releaseArtifactBaseName": "Greenpan-Design-Setup"
     },
     "publish": [
       {

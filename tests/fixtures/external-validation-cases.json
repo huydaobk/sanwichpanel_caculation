@@ -1,0 +1,547 @@
+{
+  "meta": {
+    "version": 2,
+    "purpose": "Scaffold for external validation references. Numbers should only be added when a trustworthy external source is attached.",
+    "statusLegend": {
+      "captured": "Reference source and expected outputs are attached and can be executed automatically.",
+      "partial": "Some reference logic exists, but the case is not yet fully documented as an external benchmark.",
+      "scaffold": "Case intentionally defined without benchmark numbers yet."
+    },
+    "benchmarkClassLegend": {
+      "external-captured": "Captured benchmark tied to an external reference or published closed-form source.",
+      "internal-captured": "Captured benchmark tied to an internal derivation, executable harness, or repository-backed worksheet, not an external validation source.",
+      "scaffold": "Placeholder case shape exists but expected benchmark outputs are intentionally not locked yet."
+    }
+  },
+  "cases": [
+    {
+      "id": "VM-01",
+      "title": "Single span simply supported under UDL",
+      "status": "captured",
+      "goal": "Validate baseline reactions, shear diagram, moment diagram for the solver.",
+      "referenceType": "closed-form",
+      "referenceSource": {
+        "kind": "formula-note",
+        "citation": "notes/external-validation-matrix.md, section 'VM-01 — Single span simply supported under UDL' (classical simply supported beam formulas: R_A = R_B = qL/2, M(L/4) = 3qL^2/32, M(L/2) = qL^2/8)",
+        "url": null,
+        "note": "Repository note explicitly lists the closed-form reference formulas used for this benchmark. Inputs: L = 6000 mm, q = 5 N/mm."
+      },
+      "inputs": {
+        "spanM": 6,
+        "lengthMm": 6000,
+        "qDown_N_per_mm": 5,
+        "EI_N_mm2": 20000000000000,
+        "meshElements": 1
+      },
+      "outputs": [
+        "reaction_left",
+        "reaction_right",
+        "shear_at_left",
+        "shear_at_mid",
+        "shear_at_right",
+        "moment_at_quarter",
+        "moment_at_mid",
+        "moment_at_right"
+      ],
+      "expected": {
+        "reaction_left": 15000,
+        "reaction_right": 15000,
+        "shear_at_left": 15000,
+        "shear_at_mid": 0,
+        "shear_at_right": -15000,
+        "moment_at_quarter": 16875000,
+        "moment_at_mid": 22500000,
+        "moment_at_right": 0
+      },
+      "tolerance": {
+        "type": "relative-or-absolute-per-output",
+        "defaultRelative": 0.005,
+        "overrides": {
+          "shear_at_mid": {
+            "absolute": 0.000001
+          },
+          "moment_at_right": {
+            "absolute": 0.000001
+          }
+        },
+        "notes": "0.5% for force results; near-zero outputs use tight absolute tolerance."
+      },
+      "implementationHints": {
+        "existingTests": [
+          "tests/regression/solverAnalyticalBenchmarks.test.mjs"
+        ]
+      }
+    },
+    {
+      "id": "VM-02",
+      "title": "Single span simply supported with midspan point load",
+      "status": "captured",
+      "goal": "Validate point-load assembly and shear jump at the load position.",
+      "referenceType": "closed-form",
+      "referenceSource": {
+        "kind": "formula-note",
+        "citation": "notes/external-validation-matrix.md, section 'VM-02 — Single span simply supported with midspan point load' (classical formulas: reactions = P/2, M(mid) = PL/4, zero end moments)",
+        "url": null,
+        "note": "Repository note explicitly lists the closed-form reference formulas used for this benchmark. Inputs: L = 6000 mm, P = 12000 N at midspan."
+      },
+      "inputs": {
+        "spanM": 6,
+        "lengthMm": 6000,
+        "pointLoad_N": 12000,
+        "pointLoadX_mm": 3000,
+        "EI_N_mm2": 20000000000000,
+        "meshElements": 1
+      },
+      "outputs": [
+        "reaction_left",
+        "reaction_right",
+        "shear_pre_load",
+        "shear_post_load",
+        "moment_at_mid"
+      ],
+      "expected": {
+        "reaction_left": 6000,
+        "reaction_right": 6000,
+        "shear_pre_load": 6000,
+        "shear_post_load": -6000,
+        "moment_at_mid": 18000000
+      },
+      "tolerance": {
+        "type": "relative",
+        "value": 0.005,
+        "notes": "0.5% for force results."
+      },
+      "implementationHints": {
+        "existingTests": [
+          "tests/regression/solverAnalyticalBenchmarks.test.mjs"
+        ]
+      }
+    },
+    {
+      "id": "VM-03",
+      "title": "Single span simply supported with eccentric point load",
+      "status": "captured",
+      "goal": "Validate unsymmetrical reactions and deflection convergence near the load point.",
+      "referenceType": "closed-form",
+      "referenceSource": {
+        "kind": "formula-note",
+        "citation": "notes/external-validation-matrix.md, section 'VM-03 — Single span simply supported with eccentric point load' (classical formulas: left/right reactions = Pb/L and Pa/L; deflection at load uses closed-form simply supported point-load expression)",
+        "url": null,
+        "note": "Using L = 6000 mm, P = 12000 N, a = 2500 mm from left support, b = 3500 mm from right support. Deflection benchmark is executed with refined mesh (16 elements) per matrix guidance."
+      },
+      "inputs": {
+        "spanM": 6,
+        "lengthMm": 6000,
+        "pointLoad_N": 12000,
+        "pointLoadX_mm": 2500,
+        "EI_N_mm2": 20000000000000,
+        "meshElements": 16
+      },
+      "outputs": [
+        "reaction_left",
+        "reaction_right",
+        "moment_at_load",
+        "deflection_at_load"
+      ],
+      "expected": {
+        "reaction_left": 7000,
+        "reaction_right": 5000,
+        "moment_at_load": 17500000,
+        "deflection_at_load": -2.5520833333333335
+      },
+      "tolerance": {
+        "type": "mixed",
+        "forceRelative": 0.005,
+        "deflectionRelative": 0.02,
+        "notes": "0.5% for reactions/moment; 2% for deflection with refined mesh."
+      },
+      "implementationHints": {
+        "existingTests": [
+          "tests/regression/solverAnalyticalBenchmarks.test.mjs"
+        ]
+      }
+    },
+    {
+      "id": "VM-04",
+      "title": "UDL deflection convergence benchmark",
+      "status": "captured",
+      "goal": "Separate exact statics from displacement convergence behavior while capturing a truthful refined-mesh acceptance target.",
+      "referenceType": "closed-form",
+      "referenceSource": {
+        "kind": "formula-note",
+        "citation": "notes/external-validation-matrix.md, section 'VM-04 — UDL deflection convergence benchmark' together with classical Euler-Bernoulli simply supported beam formulas (w(L/2) = 5qL^4 / 384EI, w(L/4) = 57qL^4 / 6144EI)",
+        "url": null,
+        "note": "This is an internal convergence benchmark, not a claim that coarse-mesh displacement is exact. Expected values are closed-form Euler-Bernoulli deflections evaluated using a refined executable mesh policy already demonstrated in regression: 2 elements are sufficient for midspan and 4 elements are sufficient for quarter-span under this solver formulation. The executable captured case therefore uses 4 elements to satisfy both outputs honestly."
+      },
+      "inputs": {
+        "spanM": 6,
+        "lengthMm": 6000,
+        "qDown_N_per_mm": 5,
+        "EI_N_mm2": 20000000000000,
+        "meshElements": 4
+      },
+      "outputs": [
+        "deflection_at_quarter",
+        "deflection_at_mid"
+      ],
+      "expected": {
+        "deflection_at_quarter": -3.005859375,
+        "deflection_at_mid": -4.21875
+      },
+      "tolerance": {
+        "type": "relative",
+        "value": 0.02,
+        "notes": "2% on deflection against closed-form Euler-Bernoulli values, with meshElements=4 chosen as the documented refined-mesh convergence target for simultaneously checking L/4 and L/2. Monotonic convergence behavior remains verified in the dedicated regression benchmark test."
+      },
+      "implementationHints": {
+        "existingTests": [
+          "tests/regression/solverAnalyticalBenchmarks.test.mjs",
+          "tests/regression/externalValidationCaptured.test.mjs"
+        ]
+      }
+    },
+    {
+      "id": "VM-05",
+      "title": "Two-span equal continuous beam under equal UDL",
+      "status": "captured",
+      "goal": "Validate interior support moment, positive span moment, and symmetric reactions for continuous behavior.",
+      "referenceType": "handbook-formula",
+      "referenceSource": {
+        "kind": "formula-page",
+        "citation": "Structural Basics, '2 Span Continuous Beam – Moment and shear force formulas due to different loads', case 'Uniformly distributed line load (UDL) – 2 Span continuous beam – formulas' (M_support = -qL^2/8, M_positive = 9qL^2/128 at x = 3L/8 from each outer support, R_outer = 3qL/8, R_internal = 5qL/4)",
+        "url": "https://www.structuralbasics.com/2span-continuous-beam-formulas/",
+        "note": "Using per-span length L = 4000 mm and q = 3 N/mm on both equal spans. Solver sign convention stores opposite end-action signs on adjacent elements, so expected benchmark uses physical support moment as negative hogging and symmetric positive span moment magnitude."
+      },
+      "inputs": {
+        "spanM": 4,
+        "lengthPerSpanMm": 4000,
+        "qDown_N_per_mm": 3,
+        "EI_N_mm2": 15000000000000,
+        "meshElements": 2
+      },
+      "outputs": [
+        "support_moment_internal",
+        "span_positive_moment",
+        "reaction_left",
+        "reaction_internal",
+        "reaction_right",
+        "governing_moment_location_left_mm",
+        "governing_moment_location_right_mm"
+      ],
+      "expected": {
+        "support_moment_internal": -6000000,
+        "span_positive_moment": 3375000,
+        "reaction_left": 4500,
+        "reaction_internal": 15000,
+        "reaction_right": 4500,
+        "governing_moment_location_left_mm": 1500,
+        "governing_moment_location_right_mm": 6500
+      },
+      "tolerance": {
+        "type": "relative-or-absolute-per-output",
+        "defaultRelative": 0.005,
+        "overrides": {
+          "governing_moment_location_left_mm": {
+            "absolute": 1
+          },
+          "governing_moment_location_right_mm": {
+            "absolute": 1
+          }
+        },
+        "notes": "0.5% on moment/reaction outputs; moment-location checks use ±1 mm absolute because the closed-form location is exact for this benchmark."
+      }
+    },
+    {
+      "id": "VM-06",
+      "title": "Two-span equal continuous beam under UDL on one span only",
+      "status": "captured",
+      "benchmarkClass": "external-captured",
+      "goal": "Validate asymmetric continuous-beam redistribution and uplift-sign behavior when only one span carries UDL.",
+      "referenceType": "handbook-formula",
+      "referenceSource": {
+        "kind": "formula-page",
+        "citation": "Structural Basics, '2 Span Continuous Beam – Moment and shear force formulas due to different loads', case 'Uniformly distributed line load (UDL) on one span – 2 Span continuous beam – formulas' (M_support = -qL^2/16, M_positive_loaded = 49qL^2/512, R_left = 7qL/16, R_internal = 5qL/8, R_right = -qL/16)",
+        "url": "https://www.structuralbasics.com/2span-continuous-beam-formulas/",
+        "note": "Executable capture is now enabled because the solver/executor path accepts span-specific distributed load input while preserving the legacy scalar qDown fallback. Locked fixture uses L = 4000 mm per span, q = 3 N/mm on the left span only, and zero UDL on the right span. The executable check locks the repository solver's sign/location convention: loaded-span sagging moment is benchmarked against the published coefficient, while the unloaded span is verified to remain non-sagging (max positive moment = 0) under this implementation convention."
+      },
+      "inputs": {
+        "spanM": 4,
+        "lengthPerSpanMm": 4000,
+        "qDownLeft_N_per_mm": 3,
+        "qDownRight_N_per_mm": 0,
+        "EI_N_mm2": 15000000000000,
+        "meshElements": 2
+      },
+      "outputs": [
+        "support_moment_internal",
+        "loaded_span_positive_moment",
+        "unloaded_span_positive_moment",
+        "reaction_left",
+        "reaction_internal",
+        "reaction_right"
+      ],
+      "expected": {
+        "support_moment_internal": -3000000,
+        "loaded_span_positive_moment": 4593750,
+        "unloaded_span_positive_moment": 0,
+        "reaction_left": 5250,
+        "reaction_internal": 7500,
+        "reaction_right": -750
+      },
+      "tolerance": {
+        "type": "relative",
+        "value": 0.005,
+        "notes": "0.5% on moment/reaction outputs against the published equal-two-span one-sided-UDL coefficients."
+      }
+    },
+    {
+      "id": "VM-07",
+      "title": "Two-span equal continuous beam with one midspan point load on the left span",
+      "status": "captured",
+      "benchmarkClass": "external-captured",
+      "goal": "Validate one-sided point-load transfer, hogging support moment, and far-support uplift sign in a continuous beam.",
+      "referenceType": "handbook-formula",
+      "referenceSource": {
+        "kind": "formula-page",
+        "citation": "Structural Basics, '2 Span Continuous Beam – Moment and shear force formulas due to different loads', case 'Point load at midspan – 2 Span continuous beam – formulas' (M_support = -3QL/32, M_positive_loaded = 13QL/64, R_loaded_outer = 13Q/32, R_internal = 11Q/16, R_far_outer = -3Q/32)",
+        "url": "https://www.structuralbasics.com/2span-continuous-beam-formulas/",
+        "note": "Using per-span length L = 4000 mm and Q = 12000 N at the left-span midspan (x = 2000 mm). The source page is drawn with the point load on the opposite span relative to the repository fixture, so this executable capture mirrors the magnitudes into left-to-right solver coordinates; the far outer support therefore carries the negative reaction in this fixture ordering."
+      },
+      "inputs": {
+        "spanM": 4,
+        "lengthPerSpanMm": 4000,
+        "pointLoad_N": 12000,
+        "pointLoadX_mm": 2000,
+        "EI_N_mm2": 15000000000000,
+        "meshElements": 2
+      },
+      "outputs": [
+        "support_moment_internal",
+        "loaded_span_positive_moment",
+        "reaction_left",
+        "reaction_internal",
+        "reaction_right",
+        "loaded_span_positive_moment_location_mm"
+      ],
+      "expected": {
+        "support_moment_internal": -4500000,
+        "loaded_span_positive_moment": 9750000,
+        "reaction_left": 4875,
+        "reaction_internal": 8250,
+        "reaction_right": -1125,
+        "loaded_span_positive_moment_location_mm": 2000
+      },
+      "tolerance": {
+        "type": "relative-or-absolute-per-output",
+        "defaultRelative": 0.005,
+        "overrides": {
+          "loaded_span_positive_moment_location_mm": {
+            "absolute": 1
+          }
+        },
+        "notes": "0.5% on moment/reaction outputs; the loaded-span maximum occurs exactly at the load point for this benchmark, so location uses ±1 mm absolute tolerance."
+      },
+      "implementationHints": {
+        "existingTests": [
+          "tests/regression/externalValidationCaptured.test.mjs"
+        ]
+      }
+    },
+    {
+      "id": "VM-08",
+      "title": "Thermal-only equal two-span internal capture",
+      "status": "captured",
+      "benchmarkClass": "internal-captured",
+      "goal": "Validate thermal fixed-end action assembly, solver sign convention, and equal-two-span symmetry for the repository thermal load model without claiming external validation.",
+      "referenceType": "internal-derivation-harness",
+      "referenceSource": {
+        "kind": "repository-derivation-and-harness",
+        "citation": "notes/external-validation-matrix.md, section 'VM-08 — Thermal-only equal two-span internal capture'; notes/thermal-two-span-derivation.md, sections 'Relation to VM-06' and 'Bottom line'; notes/thermal-two-span-independent-harness.md, sections 'Conclusion for VM-06 readiness' and 'Recommended next step'; tests/helpers/thermalTwoSpanIndependentHarness.mjs",
+        "url": null,
+        "note": "This is an internal captured benchmark for the locked equal-two-span thermal-only fixture. Expected values are backed by the repository derivation plus an independent reduced-system executable harness, and are intentionally not presented as an external validation benchmark. Locked fixture: spanMm=4000 per span, EI=1.5e13 N·mm², GA=1e18 N, kappaShear=1, thermalMoment=1000 N·mm on both spans, qDown=0, no point loads, all vertical supports restrained."
+      },
+      "inputs": {
+        "spanM": 4,
+        "lengthPerSpanMm": 4000,
+        "EI_N_mm2": 15000000000000,
+        "GA_N": 1000000000000000000,
+        "kappaShear": 1,
+        "thermalMoment_N_mm": 1000
+      },
+      "outputs": [
+        "left_outer_support_moment",
+        "support_moment_internal_left",
+        "support_moment_internal_right",
+        "reaction_left",
+        "reaction_internal",
+        "reaction_right"
+      ],
+      "expected": {
+        "left_outer_support_moment": 0,
+        "support_moment_internal_left": 1500,
+        "support_moment_internal_right": -1500,
+        "reaction_left": -0.375,
+        "reaction_internal": 0.75,
+        "reaction_right": -0.375
+      },
+      "tolerance": {
+        "type": "relative-or-absolute-per-output",
+        "defaultRelative": 0.000001,
+        "overrides": {
+          "left_outer_support_moment": {
+            "absolute": 0.000001
+          }
+        },
+        "notes": "Near-exact tolerance because this is a deterministic internal derivation-backed harness capture, not a mesh-convergence benchmark. Zero outer support moment uses absolute tolerance."
+      },
+      "implementationHints": {
+        "existingTests": [
+          "tests/regression/thermalTwoSpanIndependentHarness.test.mjs",
+          "tests/regression/externalValidationCaptured.test.mjs"
+        ],
+        "captureNotes": "Benchmark class is internal-captured on purpose: derivation-backed / implementation-backed internal benchmark for the locked fixture, not external validation."
+      }
+    },
+    {
+      "id": "VM-09",
+      "title": "Sandwich section property sanity case",
+      "status": "captured",
+      "goal": "Validate section properties independently from the global solver.",
+      "referenceType": "internal-derivation",
+      "referenceSource": {
+        "kind": "repository-derivation",
+        "citation": "notes/external-validation-matrix.md, section 'VM-07 — Sandwich section property sanity case'; src/calc/section.js (`buildSectionProperties`, `calcSelfWeight_kPa`)",
+        "url": null,
+        "note": "This is an internal sanity benchmark, not an external code-standard benchmark. Expected values are derived directly from the repository's section-property equations for a fixed geometry/material worksheet: panelWidth=1000 mm, coreThickness=80 mm, skinOut=0.5 mm, skinIn=0.4 mm, coreShearModulus=3.2 N/mm², compressiveModulus=4.5 N/mm², coreDensity=42 kg/m³, wrinklingMode=yield-only."
+      },
+      "inputs": {
+        "panelWidth": 1000,
+        "coreThickness": 80,
+        "skinOut": 0.5,
+        "skinIn": 0.4,
+        "coreShearModulus": 3.2,
+        "compressiveModulus": 4.5,
+        "coreDensity": 42,
+        "steelYield": 280,
+        "wrinklingMode": "yield-only",
+        "wrinklingStress": 0
+      },
+      "outputs": [
+        "EI",
+        "I_eq",
+        "zMax",
+        "GA_inst",
+        "self_weight_kPa"
+      ],
+      "expected": {
+        "EI": 302238696177.7778,
+        "I_eq": 1439231.8865608466,
+        "zMax": 44.69444444444444,
+        "GA_inst": 256000,
+        "self_weight_kPa": 0.10226925
+      },
+      "tolerance": {
+        "type": "relative",
+        "value": 0.000001,
+        "notes": "Tight tolerance because this is a deterministic repository derivation sanity case, not a mesh-sensitive benchmark."
+      }
+    },
+    {
+      "id": "VM-10",
+      "title": "Capacity and governing-case bookkeeping case",
+      "status": "captured",
+      "goal": "Validate reporting layer and governing-case selection against a practical engineering worksheet.",
+      "referenceType": "internal-ledger",
+      "referenceSource": {
+        "kind": "repository-ledger",
+        "citation": "notes/external-validation-matrix.md, section 'VM-10 — Capacity / governing-case bookkeeping case'; src/calc/runPanelAnalysis.js; src/calc/checks.js; src/calc/reporting.js",
+        "url": null,
+        "note": "This is an internal bookkeeping benchmark, not an external vendor or code-standard worksheet. Expected values are locked from a fully specified repository execution path with external panel, spans=[3,3] m, supportWidths=[20,20,20] mm, screwStrength=20 kN, deflectionLimit=L/1000, no point loads, and declared wrinkling stress 120 MPa so crushing clearly governs the final report ledger."
+      },
+      "inputs": {
+        "projectName": "VM08 ledger",
+        "panelType": "external",
+        "internalWallType": "normal",
+        "coreThickness": 50,
+        "skinOut": 0.45,
+        "skinIn": 0.45,
+        "panelWidth": 1000,
+        "steelYield": 280,
+        "coreShearStrength": 0.12,
+        "coreShearModulus": 3.5,
+        "compressiveModulus": 4,
+        "wrinklingMode": "declared",
+        "wrinklingStress": 120,
+        "redistributionMode": "elastic",
+        "kappaShear": 1,
+        "coreDensity": 42,
+        "windPressure": 0.8,
+        "windDirection": "pressure",
+        "tempOut": 65,
+        "tempIn": 25,
+        "gammaF_thermal": 1.5,
+        "screwStrength": 20,
+        "screwSpacing": 1000,
+        "deflectionLimit": 1000,
+        "creepFactor": 2.4,
+        "creepFactorBending": 0,
+        "spans": [3, 3],
+        "supportWidths": [20, 20, 20],
+        "deadLoadMode": "auto",
+        "deadLoadManual_kPa": 0,
+        "liveLoad_kPa": 0.25,
+        "gammaG": 1.35,
+        "gammaQ": 1.5,
+        "pointLoads": []
+      },
+      "outputs": [
+        "ratio_bending",
+        "ratio_support",
+        "ratio_shear",
+        "ratio_crushing",
+        "ratio_uplift",
+        "ratio_deflection",
+        "governing_case",
+        "status"
+      ],
+      "expected": {
+        "ratio_bending": 1.5996348447506825,
+        "ratio_support": 1.5996348447506825,
+        "ratio_shear": 0.7772864961618215,
+        "ratio_crushing": 2.9176505089983498,
+        "ratio_uplift": 0.4962196991497069,
+        "ratio_deflection": 2.5113006650217202,
+        "governing_case": "crushing",
+        "status": "fail"
+      },
+      "tolerance": {
+        "type": "mixed-ledger",
+        "ratioRelative": 0.000001,
+        "categoricalExact": true,
+        "notes": "Tight ratio tolerance because this is a locked repository ledger case; governing label and pass/fail must match exactly."
+      }
+    },
+    {
+      "id": "VM-11",
+      "title": "Redistribution trigger case",
+      "status": "scaffold",
+      "goal": "Validate simplified redistribution behavior without pretending exact closed-form equivalence.",
+      "referenceType": "vendor-style-or-documented-workflow",
+      "referenceSource": {
+        "kind": "workflow-note",
+        "citation": null,
+        "url": null,
+        "note": "Trend-based acceptance only until a stronger external reference exists."
+      },
+      "outputs": [
+        "hinge_triggered",
+        "support_moment_reduction_vs_elastic",
+        "governing_case"
+      ],
+      "tolerance": {
+        "type": "qualitative",
+        "notes": "Exact numeric benchmark intentionally not defined yet"
+      }
+    }
+  ]
+}

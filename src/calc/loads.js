@@ -1,6 +1,44 @@
 import { calcSelfWeight_kPa } from './section.js';
 
-export const buildMechanicalCases = ({ config, qDead_kPa, qLive_kPa, windBase, qLineFactor, gammaG, gammaQ, gammaF_wind }) => {
+export const normalizeDistributedLoadBySpan = (spans = [], value = 0) => {
+  const nSpan = Array.isArray(spans) ? spans.length : 0;
+  if (Array.isArray(value)) {
+    return Array.from({ length: nSpan }, (_, idx) => Number(value[idx]) || 0);
+  }
+  const scalar = Number(value) || 0;
+  return Array.from({ length: nSpan }, () => scalar);
+};
+
+export const resolveCeilingDistributedLoads = (config = {}) => {
+  const spans = Array.isArray(config.spans) ? config.spans : [];
+  const qDeadScalar = config.deadLoadMode === 'manual'
+    ? (Number(config.deadLoadManual_kPa) || 0)
+    : calcSelfWeight_kPa({
+      coreDensity: config.coreDensity,
+      coreThickness_mm: config.coreThickness,
+      skinOut_mm: config.skinOut,
+      skinIn_mm: config.skinIn,
+    });
+  const qLiveScalar = Number(config.liveLoad_kPa) || 0;
+  const usePerSpan = config.panelType === 'ceiling' && config.enableSpanDistributedLoads === true;
+
+  const deadBySpan = usePerSpan
+    ? normalizeDistributedLoadBySpan(spans, config.deadLoadBySpan_kPa)
+    : normalizeDistributedLoadBySpan(spans, qDeadScalar);
+  const liveBySpan = usePerSpan
+    ? normalizeDistributedLoadBySpan(spans, config.liveLoadBySpan_kPa)
+    : normalizeDistributedLoadBySpan(spans, qLiveScalar);
+
+  return {
+    enabled: usePerSpan,
+    qDeadScalar,
+    qLiveScalar,
+    deadBySpan,
+    liveBySpan,
+  };
+};
+
+export const buildMechanicalCases = ({ config, qDead_kPa, qLive_kPa, qDeadBySpan_kPa, qLiveBySpan_kPa, windBase, qLineFactor, gammaG, gammaQ, gammaF_wind }) => {
   const baseCases = [
     {
       id: 'pressure',
@@ -22,16 +60,27 @@ export const buildMechanicalCases = ({ config, qDead_kPa, qLive_kPa, windBase, q
 
   const buildCaseLoads = (caseDef) => {
     if (config.panelType === 'ceiling') {
-      const liveSLS = caseDef.includeLiveSLS ? qLive_kPa : 0;
-      const liveULS = caseDef.gammaQ > 0 ? qLive_kPa : 0;
-      const qSLS_kPa = qDead_kPa + liveSLS + caseDef.qWind_kPa;
-      const qULS_kPa = (caseDef.gammaG * qDead_kPa) + (caseDef.gammaQ * liveULS) + (gammaF_wind * caseDef.qWind_kPa);
+      const deadBySpan = normalizeDistributedLoadBySpan(config.spans, qDeadBySpan_kPa ?? qDead_kPa);
+      const liveSLSBySpan = caseDef.includeLiveSLS
+        ? normalizeDistributedLoadBySpan(config.spans, qLiveBySpan_kPa ?? qLive_kPa)
+        : normalizeDistributedLoadBySpan(config.spans, 0);
+      const liveULSBySpan = caseDef.gammaQ > 0
+        ? normalizeDistributedLoadBySpan(config.spans, qLiveBySpan_kPa ?? qLive_kPa)
+        : normalizeDistributedLoadBySpan(config.spans, 0);
+      const qSLS_bySpan_kPa = deadBySpan.map((dead, idx) => dead + (liveSLSBySpan[idx] || 0) + caseDef.qWind_kPa);
+      const qULS_bySpan_kPa = deadBySpan.map((dead, idx) => (caseDef.gammaG * dead) + (caseDef.gammaQ * (liveULSBySpan[idx] || 0)) + (gammaF_wind * caseDef.qWind_kPa));
+      const qSLS_kPa = qSLS_bySpan_kPa.length > 0 ? Math.max(...qSLS_bySpan_kPa.map((v) => Math.abs(v))) : 0;
+      const qULS_kPa = qULS_bySpan_kPa.length > 0 ? Math.max(...qULS_bySpan_kPa.map((v) => Math.abs(v))) : 0;
       return {
         ...caseDef,
         qSLS_kPa,
         qULS_kPa,
-        qSLS_line: qSLS_kPa * qLineFactor,
-        qULS_line: qULS_kPa * qLineFactor,
+        qDeadBySpan_kPa: deadBySpan,
+        qLiveBySpan_kPa: normalizeDistributedLoadBySpan(config.spans, qLiveBySpan_kPa ?? qLive_kPa),
+        qSLS_bySpan_kPa,
+        qULS_bySpan_kPa,
+        qSLS_line: qSLS_bySpan_kPa.map((v) => v * qLineFactor),
+        qULS_line: qULS_bySpan_kPa.map((v) => v * qLineFactor),
       };
     }
 
@@ -56,24 +105,22 @@ export const buildLoadInputs = (config, qLineFactor) => {
 
   let qDead_kPa = 0;
   let qLive_kPa = 0;
+  let qDeadBySpan_kPa = normalizeDistributedLoadBySpan(config.spans, 0);
+  let qLiveBySpan_kPa = normalizeDistributedLoadBySpan(config.spans, 0);
+  let distributedLoadMode = 'uniform';
 
   if (config.panelType === 'ceiling') {
-    if (config.deadLoadMode === 'manual') {
-      qDead_kPa = Number(config.deadLoadManual_kPa) || 0;
-    } else {
-      qDead_kPa = calcSelfWeight_kPa({
-        coreDensity: config.coreDensity,
-        coreThickness_mm: config.coreThickness,
-        skinOut_mm: config.skinOut,
-        skinIn_mm: config.skinIn,
-      });
-    }
-    qLive_kPa = Number(config.liveLoad_kPa) || 0;
+    const distributed = resolveCeilingDistributedLoads(config);
+    qDead_kPa = distributed.qDeadScalar;
+    qLive_kPa = distributed.qLiveScalar;
+    qDeadBySpan_kPa = distributed.deadBySpan;
+    qLiveBySpan_kPa = distributed.liveBySpan;
+    distributedLoadMode = distributed.enabled ? 'per-span' : 'uniform';
   }
 
   const gammaG = Number(config.gammaG) || 1.35;
   const gammaQ = Number(config.gammaQ) || 1.5;
-  const qDead_line = qDead_kPa * qLineFactor;
+  const qDead_line = qDeadBySpan_kPa.map((v) => v * qLineFactor);
 
   return {
     windBase,
@@ -81,6 +128,9 @@ export const buildLoadInputs = (config, qLineFactor) => {
     qWindDisplay_kPa,
     qDead_kPa,
     qLive_kPa,
+    qDeadBySpan_kPa,
+    qLiveBySpan_kPa,
+    distributedLoadMode,
     gammaG,
     gammaQ,
     qDead_line,

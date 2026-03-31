@@ -1,4 +1,15 @@
-import { SECTION_CONSTANTS, stressFromMoment } from './section.js';
+import {
+  SECTION_CONSTANTS,
+  SUPPORT_CRUSHING_FACTOR,
+  SUPPORT_CRUSHING_RESISTANCE,
+  stressFromMoment,
+} from './section.js';
+import {
+  CAPACITY_CHECK_KEYS,
+  CAPACITY_CHECK_LABELS,
+  CAPACITY_GOVERNING_CASE_KEYS,
+  CAPACITY_GOVERNING_CASE_LABELS,
+} from './capacityTaxonomy.js';
 
 export const getExtrema = (data, key) => {
   let max = { x: 0, value: -Infinity };
@@ -33,7 +44,13 @@ export const buildReactionData = ({ config, reactionEnvelope, panelWidth, uplift
     const R_comp = Math.max(...reactionsAtSupport.map((r) => Math.max(r, 0)));
     const R_tension = Math.max(...reactionsAtSupport.map((r) => Math.max(-r, 0)));
 
-    const F_Rd = (constants.fCc * panelWidth * width) / constants.gammaM_shear;
+    const crushingResistanceStress = Number(constants.supportCrushingResistance?.value)
+      || Number(constants.fCc)
+      || SUPPORT_CRUSHING_RESISTANCE.value;
+    const crushingFactor = Number(constants.gammaM_crushing)
+      || Number(constants.gammaM_shear)
+      || SUPPORT_CRUSHING_FACTOR.value;
+    const F_Rd = (crushingResistanceStress * panelWidth * width) / crushingFactor;
     const crushingRatio = F_Rd > 0 ? R_comp / F_Rd : 999;
     const upliftRatio = upliftEnabled && T_Rd_N > 0 ? R_tension / T_Rd_N : 0;
 
@@ -49,7 +66,7 @@ export const buildReactionData = ({ config, reactionEnvelope, panelWidth, uplift
       F_Rd: parseFloat((F_Rd / 1000).toFixed(2)),
       ratio: crushingRatio,
       status: crushingRatio <= 1 ? 'pass' : 'fail',
-      reqWidth: constants.fCc > 0 ? (R_comp * constants.gammaM_shear) / (constants.fCc * panelWidth) : 0,
+      reqWidth: crushingResistanceStress > 0 ? (R_comp * crushingFactor) / (crushingResistanceStress * panelWidth) : 0,
       R_uplift: parseFloat((R_tension / 1000).toFixed(2)),
       T_Rd: parseFloat((T_Rd_N / 1000).toFixed(2)),
       upliftRatio,
@@ -74,43 +91,64 @@ export const buildReactionData = ({ config, reactionEnvelope, panelWidth, uplift
 };
 
 export const buildGoverningCaseSummary = ({ ratios = {}, upliftEnabled = false, hingeNoteList = [] }) => {
+  const createCase = ({ categoryKey, key, ratio, label }) => ({
+    categoryKey,
+    key,
+    ratio: ratio || 0,
+    label: label || CAPACITY_GOVERNING_CASE_LABELS[key] || CAPACITY_CHECK_LABELS[key] || key,
+  });
+
   const governing = {
-    moment: {
+    [CAPACITY_GOVERNING_CASE_KEYS.MOMENT]: createCase({
+      categoryKey: CAPACITY_GOVERNING_CASE_KEYS.MOMENT,
       key: ratios.support >= ratios.bending ? 'support' : 'span',
       ratio: Math.max(ratios.support || 0, ratios.bending || 0),
-      label: ratios.support >= ratios.bending ? 'Mô-men/ứng suất tại gối' : 'Mô-men/ứng suất tại nhịp',
-    },
-    shear: {
-      key: 'shear',
+    }),
+    [CAPACITY_GOVERNING_CASE_KEYS.SHEAR]: createCase({
+      categoryKey: CAPACITY_GOVERNING_CASE_KEYS.SHEAR,
+      key: CAPACITY_GOVERNING_CASE_KEYS.SHEAR,
       ratio: ratios.shear || 0,
-      label: 'Lực cắt lõi',
-    },
-    deflection: {
-      key: 'deflection',
+    }),
+    [CAPACITY_GOVERNING_CASE_KEYS.CRUSHING]: createCase({
+      categoryKey: CAPACITY_GOVERNING_CASE_KEYS.CRUSHING,
+      key: CAPACITY_GOVERNING_CASE_KEYS.CRUSHING,
+      ratio: ratios.crushing || 0,
+    }),
+    [CAPACITY_GOVERNING_CASE_KEYS.DEFLECTION]: createCase({
+      categoryKey: CAPACITY_GOVERNING_CASE_KEYS.DEFLECTION,
+      key: CAPACITY_GOVERNING_CASE_KEYS.DEFLECTION,
       ratio: ratios.deflection || 0,
-      label: 'Độ võng SLS',
-    },
-    uplift: upliftEnabled
-      ? {
-        key: 'uplift',
+    }),
+    [CAPACITY_GOVERNING_CASE_KEYS.UPLIFT]: upliftEnabled
+      ? createCase({
+        categoryKey: CAPACITY_GOVERNING_CASE_KEYS.UPLIFT,
+        key: CAPACITY_GOVERNING_CASE_KEYS.UPLIFT,
         ratio: ratios.uplift || 0,
-        label: 'Liên kết chống nhổ',
-      }
-      : {
+      })
+      : createCase({
+        categoryKey: CAPACITY_GOVERNING_CASE_KEYS.UPLIFT,
         key: 'na',
         ratio: 0,
-        label: 'Không áp dụng uplift',
-      },
+      }),
   };
 
-  const candidates = [governing.moment, governing.shear, governing.deflection];
-  if (upliftEnabled) candidates.push(governing.uplift);
-  const overall = candidates.reduce((worst, item) => (item.ratio > worst.ratio ? item : worst), { key: 'none', ratio: 0, label: 'Chưa xác định' });
+  const candidates = [
+    governing[CAPACITY_GOVERNING_CASE_KEYS.MOMENT],
+    governing[CAPACITY_GOVERNING_CASE_KEYS.SHEAR],
+    governing[CAPACITY_GOVERNING_CASE_KEYS.CRUSHING],
+    governing[CAPACITY_GOVERNING_CASE_KEYS.DEFLECTION],
+  ];
+  if (upliftEnabled) candidates.push(governing[CAPACITY_GOVERNING_CASE_KEYS.UPLIFT]);
+  const overall = candidates.reduce(
+    (worst, item) => (item.ratio > worst.ratio ? item : worst),
+    createCase({ categoryKey: CAPACITY_GOVERNING_CASE_KEYS.OVERALL, key: 'none', ratio: 0 }),
+  );
 
   return {
     ...governing,
-    overall: {
+    [CAPACITY_GOVERNING_CASE_KEYS.OVERALL]: {
       ...overall,
+      categoryKey: CAPACITY_GOVERNING_CASE_KEYS.OVERALL,
       hingesTriggered: hingeNoteList.length > 0,
       hingeSupports: [...hingeNoteList],
     },
@@ -180,9 +218,12 @@ export const buildCapacityChecks = ({
   const redistributionModeLabel = redistributionMode === 'simplified' ? 'đơn giản hóa' : 'đàn hồi';
 
   const advice = [];
-  advice.push(`Chế độ kiểm tra nhăn: ${wrinklingModeLabel}; chế độ phân phối nội lực: ${redistributionModeLabel}.`);
+  advice.push(`Chế độ kiểm tra nhăn yêu cầu: ${wrinklingModeLabel}; chế độ đang dùng: ${wrinklingFallbackLabel}; chế độ phân phối nội lực: ${redistributionModeLabel}.`);
+  if (wrinklingMode === 'declared' && !wrinklingDeclaredMissing) {
+    advice.push('Ứng suất nhăn đang dùng lấy theo giá trị khai báo trực tiếp của người dùng.');
+  }
   if (wrinklingDeclaredMissing) {
-    advice.push(`Thiếu ứng suất nhăn khai báo hợp lệ cho chế độ khai báo trực tiếp; hệ thống đang tự chuyển sang ${wrinklingFallbackLabel}.`);
+    advice.push(`Thiếu ứng suất nhăn khai báo hợp lệ cho chế độ khai báo trực tiếp; đã fallback rõ ràng sang ${wrinklingFallbackLabel}.`);
   }
   if (hingeNoteList.length > 0) {
     advice.push(`Đã kích hoạt tái phân phối nội lực (khớp) tại gối: ${hingeNoteList.join(', ')} (ULS).`);

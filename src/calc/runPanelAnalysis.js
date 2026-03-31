@@ -1,5 +1,7 @@
 import {
   SECTION_CONSTANTS,
+  SUPPORT_CRUSHING_FACTOR,
+  SUPPORT_CRUSHING_RESISTANCE,
   buildSectionProperties,
   buildSupportLocs,
 } from './section.js';
@@ -40,12 +42,25 @@ export function runPanelAnalysis(config, options = {}) {
 
   const gammaThermal = Number(config.gammaF_thermal) || 1.0;
   const loadInputs = buildLoadInputs(config, qLineFactor);
-  const { windBase, qWindDisplay_kPa, qDead_kPa, qLive_kPa, gammaG, gammaQ, qDead_line } = loadInputs;
+  const {
+    windBase,
+    qWindDisplay_kPa,
+    qDead_kPa,
+    qLive_kPa,
+    qDeadBySpan_kPa,
+    qLiveBySpan_kPa,
+    distributedLoadMode,
+    gammaG,
+    gammaQ,
+    qDead_line,
+  } = loadInputs;
 
   const mechanicalCasesBase = buildMechanicalCases({
     config,
     qDead_kPa,
     qLive_kPa,
+    qDeadBySpan_kPa,
+    qLiveBySpan_kPa,
     windBase,
     qLineFactor,
     gammaG,
@@ -229,11 +244,12 @@ export function runPanelAnalysis(config, options = {}) {
       const selectedDeMech = selectedSpan ? selectedSpan.de_Mech : [0, 0, 0, 0];
       const selectedDeMechLong = selectedSpan ? selectedSpan.de_MechLong : [0, 0, 0, 0];
       const selectedCaseRes = selectedSpan ? selectedSpan.caseRes : { qULS_line: 0 };
+      const selectedQULSLine = Array.isArray(selectedCaseRes.qULS_line) ? (selectedCaseRes.qULS_line[eIdx] || 0) : (selectedCaseRes.qULS_line || 0);
 
       const PsumSelected = selectedSpan ? sumPoint(selectedLoads, x, smp.mode) : 0;
-      const Vx_Mech_Selected = selectedSpan ? (selectedSpan.V1_Mech - selectedCaseRes.qULS_line * x - PsumSelected) : 0;
+      const Vx_Mech_Selected = selectedSpan ? (selectedSpan.V1_Mech - selectedQULSLine * x - PsumSelected) : 0;
       const Mx_Mech_Selected = selectedSpan
-        ? (selectedSpan.M1_Mech + selectedSpan.V1_Mech * x - (selectedCaseRes.qULS_line * x * x) / 2 - selectedLoads
+        ? (selectedSpan.M1_Mech + selectedSpan.V1_Mech * x - (selectedQULSLine * x * x) / 2 - selectedLoads
           .filter((ev) => (smp.mode === 'pre' ? ev.a_mm < x - 1e-9 : ev.a_mm <= x + 1e-9))
           .reduce((acc2, ev) => acc2 + ev.P_N * (x - ev.a_mm), 0))
         : 0;
@@ -265,9 +281,10 @@ export function runPanelAnalysis(config, options = {}) {
       let envelopeShearAbs = -Infinity;
 
       for (const caseSpan of spanCases) {
+        const qULSLine = Array.isArray(caseSpan.caseRes.qULS_line) ? (caseSpan.caseRes.qULS_line[eIdx] || 0) : (caseSpan.caseRes.qULS_line || 0);
         const Psum = sumPoint(caseSpan.loadsInSpan, x, smp.mode);
-        const Vx_Mech = caseSpan.V1_Mech - caseSpan.caseRes.qULS_line * x - Psum;
-        const Mx_Mech = caseSpan.M1_Mech + caseSpan.V1_Mech * x - (caseSpan.caseRes.qULS_line * x * x) / 2 - caseSpan.loadsInSpan
+        const Vx_Mech = caseSpan.V1_Mech - qULSLine * x - Psum;
+        const Mx_Mech = caseSpan.M1_Mech + caseSpan.V1_Mech * x - (qULSLine * x * x) / 2 - caseSpan.loadsInSpan
           .filter((ev) => (smp.mode === 'pre' ? ev.a_mm < x - 1e-9 : ev.a_mm <= x + 1e-9))
           .reduce((acc2, ev) => acc2 + ev.P_N * (x - ev.a_mm), 0);
 
@@ -368,7 +385,11 @@ export function runPanelAnalysis(config, options = {}) {
     panelWidth,
     upliftEnabled,
     screwStrength,
-    constants: SECTION_CONSTANTS,
+    constants: {
+      ...SECTION_CONSTANTS,
+      supportCrushingResistance: SUPPORT_CRUSHING_RESISTANCE,
+      supportCrushingFactor: SUPPORT_CRUSHING_FACTOR,
+    },
   });
 
   const hingeNoteList = Array.from(hingeNotes);
@@ -412,6 +433,7 @@ export function runPanelAnalysis(config, options = {}) {
       maxUplift: reactionPack.maxReactionTension,
       maxDeflection,
       ratios: capacity.ratios,
+      upliftEnabled,
       status: capacity.status,
       advice: capacity.advice,
       stress_span: capacity.stress_span_val,
@@ -427,6 +449,9 @@ export function runPanelAnalysis(config, options = {}) {
       screwCount: reactionPack.screwCount,
       qDead_kPa,
       qLive_kPa,
+      qDeadBySpan_kPa,
+      qLiveBySpan_kPa,
+      distributedLoadMode,
       qWind_kPa: qWindDisplay_kPa,
     },
     worstSupport: reactionPack.worstSupport,
@@ -436,6 +461,7 @@ export function runPanelAnalysis(config, options = {}) {
     Mt_ULS,
     section: { ...section, Af1, Af2 },
     extra: {
+      config,
       limitDenom,
       w_limit: worstDeflectionLimit,
       GA_long,
