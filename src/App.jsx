@@ -140,7 +140,52 @@ const createDefaultConfig = () => ({
   ],
 });
 
-const cloneConfig = (source) => JSON.parse(JSON.stringify(source));
+const safeJsonClone = (value, fallback = null) => {
+  if (value === null || typeof value === 'undefined') return fallback;
+  try {
+    return JSON.parse(JSON.stringify(value));
+  } catch (error) {
+    console.warn('Failed to clone JSON-safe value', error);
+    return fallback;
+  }
+};
+
+const cloneConfig = (source) => {
+  const cloned = safeJsonClone(source, null);
+  if (!cloned || typeof cloned !== 'object' || Array.isArray(cloned)) {
+    return createDefaultConfig();
+  }
+  return cloned;
+};
+
+const sanitizeText = (value, fallback = '') => {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  return fallback;
+};
+
+const normalizeIsoTimestamp = (value) => {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed) {
+      const ms = Date.parse(trimmed);
+      if (!Number.isNaN(ms)) return new Date(ms).toISOString();
+    }
+  }
+  return new Date().toISOString();
+};
+
+const isPlainObject = (value) => value != null && typeof value === 'object' && !Array.isArray(value);
+
+const getSafeLocalStorage = () => {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.localStorage || null;
+  } catch (error) {
+    console.warn('localStorage is unavailable', error);
+    return null;
+  }
+};
 
 const formatArtifactScopeLabel = (scope) => {
   switch (scope) {
@@ -181,6 +226,12 @@ const buildImportSuccessMessage = ({
   return parts.join(' ');
 };
 
+const STORAGE_KEYS = {
+  presetLibrary: 'greenpan:preset-library:v1',
+};
+
+const PRESET_LIMIT = 8;
+
 const createSnapshotTemplate = () => ({
   projectName: 'Imported snapshot',
   configSnapshot: createDefaultConfig(),
@@ -207,20 +258,39 @@ const normalizeSnapshotVariantId = (value, index) => {
 };
 
 const normalizeCompareVariantsForSnapshot = (variants, fallbackConfig) => {
+  const safeFallbackConfig = cloneConfig(fallbackConfig || createDefaultConfig());
   const source = Array.isArray(variants) && variants.length > 0
-    ? variants.slice(0, COMPARE_VARIANT_LIMIT)
-    : [createVariant('variant-a', COMPARE_VARIANT_LABELS[0], fallbackConfig)];
+    ? variants.filter((variant) => isPlainObject(variant)).slice(0, COMPARE_VARIANT_LIMIT)
+    : [createVariant('variant-a', COMPARE_VARIANT_LABELS[0], safeFallbackConfig)];
 
-  return source.map((variant, index) => {
+  const normalized = source.map((variant, index) => {
     const id = normalizeSnapshotVariantId(variant?.id, index);
     const label = normalizeSnapshotVariantLabel(variant?.label || variant?.name, index);
+    const configSource = isPlainObject(variant?.config) ? variant.config : safeFallbackConfig;
     return {
       id,
       label,
-      name: variant?.name || label,
-      config: cloneConfig(variant?.config || fallbackConfig),
+      name: sanitizeText(variant?.name || label, label),
+      config: cloneConfig(configSource),
     };
   });
+
+  if (normalized.length === 0) {
+    return [createVariant('variant-a', COMPARE_VARIANT_LABELS[0], safeFallbackConfig)];
+  }
+
+  const deduped = [];
+  const usedIds = new Set();
+  normalized.forEach((variant, index) => {
+    let nextId = variant.id;
+    while (usedIds.has(nextId)) {
+      nextId = normalizeSnapshotVariantId(`${variant.id}-${index + 1}`, index + 1);
+    }
+    usedIds.add(nextId);
+    deduped.push({ ...variant, id: nextId });
+  });
+
+  return deduped;
 };
 
 const normalizeImportedSnapshot = (payload) => {
@@ -306,6 +376,86 @@ const buildSafeExportFileName = ({ projectName, packageKind, compareModeEnabled,
   exportedAt,
   extension: 'json',
 });
+
+const buildDefaultPresetName = (config, compareModeEnabled, fallbackCount = 1) => {
+  const projectLabel = String(config?.projectName || '').trim();
+  if (projectLabel) return compareModeEnabled ? `${projectLabel} · Compare set` : projectLabel;
+  return compareModeEnabled ? `Preset compare ${fallbackCount}` : `Preset ${fallbackCount}`;
+};
+
+const buildPresetSummary = (config = {}, compareModeEnabled = false, compareVariants = []) => {
+  const spans = Array.isArray(config?.spans) ? config.spans.filter((value) => Number(value) > 0) : [];
+  const spanLabel = spans.length ? `${spans.length} nhịp` : 'chưa khai báo nhịp';
+  const thicknessLabel = Number(config?.coreThickness) > 0 ? `${Number(config.coreThickness)} mm` : 'chưa rõ dày';
+  const panelTypeLabel = config?.panelType === 'ceiling'
+    ? 'Trần'
+    : config?.panelType === 'internal'
+      ? 'Vách trong'
+      : 'Vách ngoài';
+  const compareLabel = compareModeEnabled ? ` · ${compareVariants.length || 1} PA` : '';
+  return `${panelTypeLabel} · ${thicknessLabel} · ${spanLabel}${compareLabel}`;
+};
+
+const normalizePresetLibrary = (payload) => {
+  if (!Array.isArray(payload)) return [];
+  return payload
+    .filter((item) => isPlainObject(item))
+    .map((item, index) => {
+      const rawConfig = isPlainObject(item.configSnapshot)
+        ? item.configSnapshot
+        : isPlainObject(item.config)
+          ? item.config
+          : createDefaultConfig();
+      const configSnapshot = { ...createDefaultConfig(), ...cloneConfig(rawConfig) };
+      const compareVariants = normalizeCompareVariantsForSnapshot(item.compareVariants || item.compareSnapshot?.variants, configSnapshot);
+      const compareModeEnabled = item.compareModeEnabled === true || compareVariants.length >= 2;
+      const fallbackName = buildDefaultPresetName(configSnapshot, compareModeEnabled, index + 1);
+      const name = sanitizeText(item.name, '').trim() || fallbackName;
+      const activeVariantIdCandidate = sanitizeText(item.compareActiveVariantId || item.compareSnapshot?.activeVariantId, '').trim();
+      const activeVariantId = compareVariants.some((variant) => variant.id === activeVariantIdCandidate)
+        ? activeVariantIdCandidate
+        : compareVariants[0]?.id || 'variant-a';
+      return {
+        id: sanitizeText(item.id, `preset-${Date.now()}-${index + 1}`),
+        name,
+        note: sanitizeText(item.note, '').trim(),
+        configSnapshot,
+        compareModeEnabled,
+        compareActiveVariantId: activeVariantId,
+        compareVariants,
+        savedAt: normalizeIsoTimestamp(item.savedAt),
+      };
+    })
+    .sort((a, b) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime());
+};
+
+const loadPresetLibrary = () => {
+  const storage = getSafeLocalStorage();
+  if (!storage) return [];
+  try {
+    const raw = storage.getItem(STORAGE_KEYS.presetLibrary);
+    if (!raw) return [];
+    return normalizePresetLibrary(JSON.parse(raw));
+  } catch (error) {
+    console.warn('Failed to load preset library', error);
+    try {
+      storage.removeItem(STORAGE_KEYS.presetLibrary);
+    } catch (cleanupError) {
+      console.warn('Failed to clear corrupted preset library', cleanupError);
+    }
+    return [];
+  }
+};
+
+const persistPresetLibrary = (presets) => {
+  const storage = getSafeLocalStorage();
+  if (!storage) return;
+  try {
+    storage.setItem(STORAGE_KEYS.presetLibrary, JSON.stringify(normalizePresetLibrary(presets)));
+  } catch (error) {
+    console.warn('Failed to persist preset library', error);
+  }
+};
 
 const createVariant = (id, label, config) => ({
   id,
@@ -1378,6 +1528,26 @@ export default function GreenpanDesign_Final() {
   const [compareModeEnabled, setCompareModeEnabled] = useState(false);
   const [compareActiveVariantId, setCompareActiveVariantId] = useState('variant-a');
   const [snapshotWorkflowMessage, setSnapshotWorkflowMessage] = useState('');
+  const [presetLibraryWarning, setPresetLibraryWarning] = useState('');
+  const [presetLibrary, setPresetLibrary] = useState(() => {
+    const storage = getSafeLocalStorage();
+    if (!storage) return [];
+    try {
+      const raw = storage.getItem(STORAGE_KEYS.presetLibrary);
+      if (!raw) return [];
+      return normalizePresetLibrary(JSON.parse(raw));
+    } catch (error) {
+      console.warn('Failed to hydrate preset library state', error);
+      try {
+        storage.removeItem(STORAGE_KEYS.presetLibrary);
+      } catch (cleanupError) {
+        console.warn('Failed to clear corrupted preset library during state init', cleanupError);
+      }
+      return [];
+    }
+  });
+  const [presetDraftName, setPresetDraftName] = useState('');
+  const [presetDraftNote, setPresetDraftNote] = useState('');
   const [activeTab, setActiveTab] = useState('input');
   const [printMode, setPrintMode] = useState(false);
   const [updateStatus, setUpdateStatus] = useState(null);
@@ -1396,6 +1566,29 @@ export default function GreenpanDesign_Final() {
         : variant
     )));
   }, [compareActiveVariantId, config]);
+
+  React.useEffect(() => {
+    persistPresetLibrary(presetLibrary);
+  }, [presetLibrary]);
+
+  React.useEffect(() => {
+    const storage = getSafeLocalStorage();
+    if (!storage) return;
+    const raw = storage.getItem(STORAGE_KEYS.presetLibrary);
+    if (!raw) return;
+    try {
+      normalizePresetLibrary(JSON.parse(raw));
+    } catch (error) {
+      console.warn('Preset library recovery warning', error);
+      try {
+        storage.removeItem(STORAGE_KEYS.presetLibrary);
+      } catch (cleanupError) {
+        console.warn('Failed to clear corrupted preset library after warning', cleanupError);
+      }
+      setPresetLibrary([]);
+      setPresetLibraryWarning('Đã bỏ qua preset cục bộ bị lỗi/legacy để app khởi động an toàn. Có thể lưu lại preset mới từ trạng thái hiện tại.');
+    }
+  }, []);
 
   const compareResults = useMemo(() => (
     compareVariants.map((variant) => ({
@@ -1529,6 +1722,49 @@ export default function GreenpanDesign_Final() {
       if (next.length < 2) setCompareModeEnabled(false);
       return next;
     });
+  };
+
+  const applyPresetToWorkflow = (preset) => {
+    if (!preset) return;
+    const nextVariants = normalizeCompareVariantsForSnapshot(preset.compareVariants, preset.configSnapshot);
+    const nextActiveId = nextVariants.find((variant) => variant.id === preset.compareActiveVariantId)?.id || nextVariants[0]?.id || 'variant-a';
+    const activeVariant = nextVariants.find((variant) => variant.id === nextActiveId) || nextVariants[0];
+    setCompareVariants(nextVariants);
+    setCompareModeEnabled(preset.compareModeEnabled === true || nextVariants.length >= 2);
+    setCompareActiveVariantId(nextActiveId);
+    setConfig(cloneConfig(activeVariant?.config || preset.configSnapshot || createDefaultConfig()));
+    setActiveTab('input');
+    setSnapshotWorkflowMessage(`Đã nạp preset “${preset.name}”. ${buildPresetSummary(activeVariant?.config || preset.configSnapshot, preset.compareModeEnabled, nextVariants)}.`);
+  };
+
+  const handleSaveCurrentAsPreset = () => {
+    const savedAt = new Date().toISOString();
+    const nextName = String(presetDraftName || '').trim() || buildDefaultPresetName(config, compareModeEnabled, presetLibrary.length + 1);
+    const nextNote = String(presetDraftNote || '').trim();
+    const nextPreset = {
+      id: `preset-${Date.now()}`,
+      name: nextName,
+      note: nextNote,
+      configSnapshot: cloneConfig(config),
+      compareModeEnabled,
+      compareActiveVariantId,
+      compareVariants: compareVariants.map((variant) => ({
+        id: variant.id,
+        label: variant.label,
+        name: variant.name || variant.label,
+        config: cloneConfig(variant.config),
+      })),
+      savedAt,
+    };
+
+    setPresetLibrary((prev) => [nextPreset, ...prev].slice(0, PRESET_LIMIT));
+    setPresetDraftName(nextName);
+    setSnapshotWorkflowMessage(`Đã lưu preset “${nextName}”. Có thể quick-load lại ngay trong app.`);
+  };
+
+  const handleDeletePreset = (presetId) => {
+    setPresetLibrary((prev) => prev.filter((preset) => preset.id !== presetId));
+    setSnapshotWorkflowMessage('Đã xoá preset khỏi thư viện cục bộ của app.');
   };
 
   React.useEffect(() => {
@@ -1958,11 +2194,95 @@ export default function GreenpanDesign_Final() {
                   <div className="text-slate-600">Nếu chọn nhầm result package, app sẽ báo rõ lý do.</div>
                 </div>
               </div>
+              {presetLibraryWarning && (
+                <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                  {presetLibraryWarning}
+                </div>
+              )}
               {snapshotWorkflowMessage && (
                 <div className="mt-2 rounded-lg border border-violet-200 bg-white px-3 py-2 text-xs text-violet-900">
                   {snapshotWorkflowMessage}
                 </div>
               )}
+
+              <div className="mt-3 rounded-lg border border-violet-200 bg-white px-3 py-3">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className="text-xs font-bold uppercase tracking-wide text-violet-700">Preset quick-pick</div>
+                    <div className="mt-1 text-[11px] text-slate-600">Lưu nhanh cấu hình đang mở vào app để mở lại project/snapshot hay dùng mà không cần đi qua file JSON.</div>
+                  </div>
+                  <div className="text-[11px] text-slate-500">Tối đa {PRESET_LIMIT} preset cục bộ trên máy này</div>
+                </div>
+
+                <div className="mt-3 grid gap-2 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_auto]">
+                  <label className="text-xs text-slate-600">
+                    <div className="mb-1 font-semibold">Tên preset</div>
+                    <input
+                      type="text"
+                      value={presetDraftName}
+                      onChange={(e) => setPresetDraftName(e.target.value)}
+                      className="w-full rounded border border-violet-200 px-2 py-1.5 text-sm text-slate-900"
+                      placeholder={buildDefaultPresetName(config, compareModeEnabled, presetLibrary.length + 1)}
+                    />
+                  </label>
+                  <label className="text-xs text-slate-600">
+                    <div className="mb-1 font-semibold">Ghi chú nhanh</div>
+                    <input
+                      type="text"
+                      value={presetDraftNote}
+                      onChange={(e) => setPresetDraftNote(e.target.value)}
+                      className="w-full rounded border border-violet-200 px-2 py-1.5 text-sm text-slate-900"
+                      placeholder="Ví dụ: cold room 100 mm / case demo nội bộ"
+                    />
+                  </label>
+                  <div className="flex items-end">
+                    <button
+                      type="button"
+                      onClick={handleSaveCurrentAsPreset}
+                      className="w-full rounded-full border border-violet-300 bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700"
+                    >
+                      Lưu preset đang mở
+                    </button>
+                  </div>
+                </div>
+
+                {presetLibrary.length > 0 ? (
+                  <div className="mt-3 grid gap-2 lg:grid-cols-2">
+                    {presetLibrary.map((preset) => (
+                      <div key={preset.id} className="rounded-lg border border-violet-200 bg-violet-50/40 px-3 py-3 text-xs text-slate-700">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div>
+                            <div className="font-bold text-violet-900">{preset.name}</div>
+                            <div className="mt-1 text-[11px] text-slate-600">{buildPresetSummary(preset.configSnapshot, preset.compareModeEnabled, preset.compareVariants)}</div>
+                            {preset.note && <div className="mt-1 text-[11px] text-slate-500">{preset.note}</div>}
+                            <div className="mt-1 text-[10px] uppercase tracking-wide text-slate-400">Lưu {new Date(preset.savedAt).toLocaleString('vi-VN')}</div>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => applyPresetToWorkflow(preset)}
+                              className="rounded-full border border-violet-300 bg-white px-3 py-1 font-semibold text-violet-900"
+                            >
+                              Nạp ngay
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeletePreset(preset.id)}
+                              className="rounded-full border border-rose-300 bg-white px-3 py-1 font-semibold text-rose-700"
+                            >
+                              Xóa
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-3 rounded-lg border border-dashed border-violet-200 bg-violet-50/30 px-3 py-3 text-[11px] text-slate-500">
+                    Chưa có preset nào. Lưu một cấu hình hay dùng để lần sau mở nhanh hơn thay vì export/import snapshot file.
+                  </div>
+                )}
+              </div>
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
               <button
