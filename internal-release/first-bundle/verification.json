@@ -1,0 +1,47 @@
+{
+  "appDisplayName": "Greenpan Design",
+  "version": "0.0.1",
+  "releaseStamp": "Greenpan Design v0.0.1",
+  "exportedAt": "2026-03-31T00:59:31.402Z",
+  "snapshot": {
+    "path": "/tmp/repo-review/sanwichpanel_caculation/internal-release/first-bundle/internal-release-demo-case-01--snapshot-project--20260331-005931z.json",
+    "artifactScope": "snapshot-project",
+    "internalReleaseTrack": "internal",
+    "internalReleaseStamp": "Greenpan Design v0.0.1 · internal · 2026-03-31T00:59:31.402Z",
+    "internalReleaseBundleLabel": "snapshot-project | Greenpan Design v0.0.1 · internal · 2026-03-31T00:59:31.402Z",
+    "projectName": "Internal Release Demo Case 01"
+  },
+  "result": {
+    "path": "/tmp/repo-review/sanwichpanel_caculation/internal-release/first-bundle/internal-release-demo-case-01--result-package-project--20260331-005931z.json",
+    "artifactScope": "result-package-project",
+    "internalReleaseTrack": "internal",
+    "internalReleaseStamp": "Greenpan Design v0.0.1 · internal · 2026-03-31T00:59:31.402Z",
+    "internalReleaseBundleLabel": "result-package-project | Greenpan Design v0.0.1 · internal · 2026-03-31T00:59:31.402Z",
+    "projectName": "Internal Release Demo Case 01",
+    "status": "fail",
+    "governingCase": {
+      "key": "uplift",
+      "label": "Liên kết chống nhổ",
+      "ratio": 1.258881,
+      "status": "fail",
+      "categoryKey": "overall",
+      "hingesTriggered": false
+    },
+    "pairedArtifactScopes": [
+      "snapshot-project",
+      "result-package-project"
+    ]
+  },
+  "pairingCheck": {
+    "sameTrack": true,
+    "sameStamp": true,
+    "pairedScopes": [
+      "snapshot-project",
+      "result-package-project"
+    ],
+    "expectedPairedScopes": [
+      "snapshot-project",
+      "result-package-project"
+    ]
+  }
+}

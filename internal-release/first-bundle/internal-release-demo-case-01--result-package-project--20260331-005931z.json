@@ -1,0 +1,905 @@
+{
+  "schemaVersion": "1.3.0",
+  "packageKind": "greenpan-analysis-package",
+  "exportedAt": "2026-03-31T00:59:31.402Z",
+  "appVersion": "0.0.1",
+  "exportMeta": {
+    "fileName": "internal-release-demo-case-01--result-package-project--20260331-005931z.json",
+    "exportedAtUtc": "2026-03-31T00:59:31Z",
+    "exportedDateUtc": "2026-03-31",
+    "appVersion": "0.0.1",
+    "appDisplayName": "Greenpan Design",
+    "artifactBaseName": "Greenpan-Design-Setup",
+    "artifactScope": "result-package-project",
+    "packageKind": "greenpan-analysis-package",
+    "projectSlug": "internal-release-demo-case-01",
+    "releaseStamp": "Greenpan Design v0.0.1",
+    "releaseCaption": "Greenpan Design v0.0.1 · 2026-03-31T00:59:31.402Z",
+    "releaseChannel": "stable",
+    "internalReleaseTrack": "internal",
+    "internalReleaseStamp": "Greenpan Design v0.0.1 · internal · 2026-03-31T00:59:31.402Z",
+    "internalReleaseBundleLabel": "result-package-project | Greenpan Design v0.0.1 · internal · 2026-03-31T00:59:31.402Z"
+  },
+  "artifactMeta": {
+    "fileName": "internal-release-demo-case-01--result-package-project--20260331-005931z.json",
+    "exportedAtUtc": "2026-03-31T00:59:31Z",
+    "exportedDateUtc": "2026-03-31",
+    "appVersion": "0.0.1",
+    "appDisplayName": "Greenpan Design",
+    "artifactBaseName": "Greenpan-Design-Setup",
+    "artifactScope": "result-package-project",
+    "packageKind": "greenpan-analysis-package",
+    "projectSlug": "internal-release-demo-case-01",
+    "releaseStamp": "Greenpan Design v0.0.1",
+    "releaseCaption": "Greenpan Design v0.0.1 · 2026-03-31T00:59:31.402Z",
+    "releaseChannel": "stable",
+    "internalReleaseTrack": "internal",
+    "internalReleaseStamp": "Greenpan Design v0.0.1 · internal · 2026-03-31T00:59:31.402Z",
+    "internalReleaseBundleLabel": "result-package-project | Greenpan Design v0.0.1 · internal · 2026-03-31T00:59:31.402Z",
+    "schemaVersion": "1.3.0",
+    "snapshotRole": "analysis-result",
+    "pairedArtifactScopes": [
+      "snapshot-project",
+      "result-package-project"
+    ]
+  },
+  "auditStamp": {
+    "resultStatus": "fail",
+    "overallUtilizationRatio": 1.258881,
+    "governingCase": "uplift",
+    "transparencyLevel": "medium",
+    "validationHeadlineClass": "external-captured",
+    "compareMode": false,
+    "releaseStamp": "Greenpan Design v0.0.1",
+    "releaseChannel": "stable",
+    "artifactFileName": "internal-release-demo-case-01--result-package-project--20260331-005931z.json",
+    "artifactScope": "result-package-project",
+    "internalReleaseTrack": "internal",
+    "internalReleaseStamp": "Greenpan Design v0.0.1 · internal · 2026-03-31T00:59:31.402Z",
+    "internalReleaseBundleLabel": "result-package-project | Greenpan Design v0.0.1 · internal · 2026-03-31T00:59:31.402Z",
+    "pairedArtifactScopes": [
+      "snapshot-project",
+      "result-package-project"
+    ]
+  },
+  "metadata": {
+    "projectName": "Internal Release Demo Case 01",
+    "panelType": "external",
+    "internalWallType": "normal",
+    "distributedLoadMode": "uniform",
+    "redistributionMode": "elastic",
+    "wrinklingModeRequested": "approx",
+    "wrinklingModeEffective": "approx",
+    "upliftEnabled": true,
+    "spans": 2,
+    "appDisplayName": "Greenpan Design",
+    "releaseChannel": "stable",
+    "releaseStamp": "Greenpan Design v0.0.1",
+    "artifactBaseName": "Greenpan-Design-Setup",
+    "artifactFileName": "internal-release-demo-case-01--result-package-project--20260331-005931z.json",
+    "artifactScope": "result-package-project",
+    "internalReleaseTrack": "internal",
+    "internalReleaseStamp": "Greenpan Design v0.0.1 · internal · 2026-03-31T00:59:31.402Z",
+    "internalReleaseBundleLabel": "result-package-project | Greenpan Design v0.0.1 · internal · 2026-03-31T00:59:31.402Z",
+    "pairedArtifactScopes": [
+      "snapshot-project",
+      "result-package-project"
+    ]
+  },
+  "configSnapshot": {
+    "projectName": "Internal Release Demo Case 01",
+    "panelType": "external",
+    "internalWallType": "normal",
+    "geometry": {
+      "spans": [
+        3,
+        3
+      ],
+      "supportWidths": [
+        60,
+        60,
+        60
+      ],
+      "panelWidth": 1000,
+      "coreThickness": 50,
+      "skinOut": 0.45,
+      "skinIn": 0.45
+    },
+    "loads": {
+      "deadLoadMode": "manual",
+      "deadLoadManual_kPa": 0.18,
+      "liveLoad_kPa": 0.25,
+      "windPressure": 0.9,
+      "windDirection": "suction",
+      "tempOut": 60,
+      "tempIn": 25,
+      "gammaF_thermal": 1.5,
+      "enableSpanDistributedLoads": true,
+      "deadLoadBySpan_kPa": [
+        0.18,
+        0.22
+      ],
+      "liveLoadBySpan_kPa": [
+        0.25,
+        0.1
+      ],
+      "pointLoads": [
+        {
+          "x_m": 1.5,
+          "P_kN": 0.3,
+          "note": "Đèn",
+          "type": "permanent"
+        },
+        {
+          "x_m": 4.5,
+          "P_kN": 0.2,
+          "note": "Máng cáp",
+          "type": "variable"
+        }
+      ]
+    },
+    "resistanceInputs": {
+      "steelYield": 280,
+      "coreShearStrength": 0.12,
+      "coreShearModulus": 3.5,
+      "compressiveModulus": 4,
+      "wrinklingMode": "approx",
+      "wrinklingStress": 120,
+      "wrinklingStressBasis": "design-resistance",
+      "wrinklingStressSourceType": "vendor",
+      "wrinklingStressUnit": "MPa",
+      "wrinklingStressSourceRef": "Vendor wrinkling table rev.2",
+      "wrinklingStressSourceNote": "Locked internal release fixture.",
+      "wrinklingStressProductContext": "Panel family GP-1000",
+      "screwStrength": 8.5,
+      "screwStrengthBasis": "vendor-allowable-per-fastener",
+      "screwStrengthSourceType": "vendor",
+      "screwStrengthUnit": "kN",
+      "screwStrengthSourceRef": "Fastener datasheet ABC rev.4, table 7",
+      "screwStrengthSourceNote": "Allowable pull-out for 0.5 mm skin over Z200 support; verify washer detail separately.",
+      "screwStrengthFastenerContext": "SDS 5.5 / support Z200 / sheet 0.5 mm / washer 19 mm",
+      "screwStrengthSpacingMeaning": "Spacing measured along panel width for this simplified panel-line count.",
+      "screwSpacing": 1000
+    },
+    "analysisOptions": {
+      "redistributionMode": "elastic",
+      "kappaShear": 1,
+      "deflectionLimit": 200,
+      "creepFactor": 2.4,
+      "creepFactorBending": 0,
+      "gammaG": 1.35,
+      "gammaQ": 1.5,
+      "coreDensity": 42
+    }
+  },
+  "resultSnapshot": {
+    "status": "fail",
+    "governing": {
+      "overall": {
+        "key": "uplift",
+        "label": "Liên kết chống nhổ",
+        "ratio": 1.258881,
+        "status": "fail",
+        "categoryKey": "overall",
+        "hingesTriggered": false
+      },
+      "moment": {
+        "key": "span",
+        "label": "Mô-men/ứng suất tại nhịp",
+        "ratio": 0.61637,
+        "status": "pass",
+        "categoryKey": "moment",
+        "hingesTriggered": false
+      },
+      "shear": {
+        "key": "shear",
+        "label": "Lực cắt lõi",
+        "ratio": 0.838071,
+        "status": "pass",
+        "categoryKey": "shear",
+        "hingesTriggered": false
+      },
+      "crushing": {
+        "key": "crushing",
+        "label": "Ép dập gối tựa",
+        "ratio": 1.166872,
+        "status": "fail",
+        "categoryKey": "crushing",
+        "hingesTriggered": false
+      },
+      "uplift": {
+        "key": "uplift",
+        "label": "Liên kết chống nhổ",
+        "ratio": 1.258881,
+        "status": "fail",
+        "categoryKey": "uplift",
+        "hingesTriggered": false
+      },
+      "deflection": {
+        "key": "deflection",
+        "label": "Độ võng SLS",
+        "ratio": 0.482661,
+        "status": "pass",
+        "categoryKey": "deflection",
+        "hingesTriggered": false
+      }
+    },
+    "utilizationRatios": {
+      "bending": 0.61637,
+      "support": 0.61637,
+      "shear": 0.838071,
+      "crushing": 1.166872,
+      "uplift": 1.258881,
+      "deflection": 0.482661
+    },
+    "keyOutputs": {
+      "maxMomentAbs_kNm": 3.563221,
+      "maxMomentNeg_kNm": 3.563221,
+      "maxMomentPos_kNm": 0,
+      "maxSupportMoment_kNm": 3.563221,
+      "maxShear_kN": 4.02274,
+      "maxReaction_kN": 5.600985,
+      "maxUplift_kN": 8.04548,
+      "maxDeflection_mm": 7.239914,
+      "deflectionLimit_mm": 15,
+      "sigmaLimit_MPa": 254.545455,
+      "stressSpan_MPa": 156.894269,
+      "stressSupport_MPa": 156.894269,
+      "resistanceMoment_kNm": 5.780974,
+      "resistanceShear_kN": 4.8,
+      "resistanceCrushing_kN": 4.8,
+      "resistanceUplift_kN": 6.39
+    },
+    "reactionSummary": [
+      {
+        "support": null,
+        "reaction_kN": 0.00287,
+        "compression_kN": 0,
+        "uplift_kN": 0,
+        "status": "pass",
+        "ratio": 0.597814
+      },
+      {
+        "support": null,
+        "reaction_kN": 0.0056,
+        "compression_kN": 0,
+        "uplift_kN": 0,
+        "status": "fail",
+        "ratio": 1.166872
+      },
+      {
+        "support": null,
+        "reaction_kN": 0.00287,
+        "compression_kN": 0,
+        "uplift_kN": 0,
+        "status": "pass",
+        "ratio": 0.597814
+      }
+    ]
+  },
+  "validationSnapshot": {
+    "headline": {
+      "status": "Captured",
+      "benchmarkClass": "external-captured",
+      "benchmarkLabel": "External benchmark captured",
+      "capturedCount": 10,
+      "totalCases": 11,
+      "externalCapturedCount": 2,
+      "internalCapturedCount": 1,
+      "scaffoldCount": 1
+    },
+    "keyCases": [
+      {
+        "id": "VM-06",
+        "title": "Two-span equal continuous beam under UDL on one span only",
+        "benchmarkClass": "external-captured",
+        "benchmarkLabel": "External benchmark captured",
+        "referenceType": "handbook-formula",
+        "status": "captured"
+      },
+      {
+        "id": "VM-07",
+        "title": "Two-span equal continuous beam with one midspan point load on the left span",
+        "benchmarkClass": "external-captured",
+        "benchmarkLabel": "External benchmark captured",
+        "referenceType": "handbook-formula",
+        "status": "captured"
+      },
+      {
+        "id": "VM-08",
+        "title": "Thermal-only equal two-span internal capture",
+        "benchmarkClass": "internal-captured",
+        "benchmarkLabel": "Internal benchmark captured",
+        "referenceType": "internal-derivation-harness",
+        "status": "captured"
+      }
+    ],
+    "transparency": {
+      "key": "medium",
+      "label": "Medium transparency",
+      "detail": "0 exact · 0 approx · 0 input-dependent"
+    },
+    "assumptions": [
+      "Solver uses continuous-beam FEM (Timoshenko) with current repository sign conventions and reporting envelope logic.",
+      "Section resistance/check reporting follows current input semantics for wrinkling, shear core strength, support width, and uplift fastener resistance.",
+      "Wind is reported in suction mode at 0.90 kPa; thermal differential uses ΔT = 0.0 °C.",
+      "Distributed load model is uniform: all spans share the same qG/qQ set as the legacy flow.",
+      "Uplift check is active based on current wall mode and screwStrength input path."
+    ],
+    "limitations": [
+      "Captured validation coverage improves confidence in the current solver/reporting path, but does not by itself make the app a substitute for project-specific code approval or vendor-certified design sheets.",
+      "Transparency classes reflect provenance, not legal authority: user-declared or approximation-based inputs still require engineering judgment and source review before formal issue.",
+      "Uplift resistance remains dependent on declared fastener capacity input; current report exposes provenance but does not upgrade that value into a source-backed fastening certification."
+    ],
+    "technicalTransparency": {
+      "wrinkling": {
+        "requestedMode": "approx",
+        "effectiveMode": "approx",
+        "source": "approx",
+        "sourceClassification": "engineering-approximation",
+        "requestedModeReliability": "engineering-approximation",
+        "effectiveModeReliability": "engineering-approximation",
+        "usedDeclaredValue": false,
+        "declaredInputMeaning": null,
+        "declaredInput": {
+          "value": 120,
+          "unit": "MPa",
+          "expectedUnit": "MPa",
+          "expectedMeaning": "Declared wrinkling resistance/stress input supplied by the user for the selected panel product/facing/core combination.",
+          "preferredBasis": "design-resistance",
+          "basis": "design-resistance",
+          "sourceType": "vendor",
+          "sourceRef": "Vendor wrinkling table rev.2",
+          "sourceNote": "Locked internal release fixture.",
+          "productContext": "Panel family GP-1000",
+          "isSourceDocumented": true,
+          "schemaVersion": 3,
+          "sourceFirst": true,
+          "basisNote": "UI/report should always show MPa together with the declared basis because the same numeric value can mean design resistance, characteristic resistance, raw test result, or a vendor-tabulated limit.",
+          "sourceExpectation": "Prefer a cited vendor table, test report, or archived engineering worksheet before treating the declared value as stronger than a user declaration."
+        },
+        "declaredInputSchema": {
+          "key": "wrinklingStress",
+          "version": 3,
+          "sourceFirst": true,
+          "expectedMeaning": "Declared wrinkling resistance/stress input supplied by the user for the selected panel product/facing/core combination.",
+          "preferredBasis": "design-resistance",
+          "preferredSourceTypesForRelease": [
+            "vendor",
+            "test",
+            "worksheet"
+          ],
+          "acceptedBases": [
+            "design-resistance",
+            "characteristic-resistance",
+            "test-result",
+            "vendor-table",
+            "user-note"
+          ],
+          "unit": "MPa",
+          "basisNote": "UI/report should always show MPa together with the declared basis because the same numeric value can mean design resistance, characteristic resistance, raw test result, or a vendor-tabulated limit.",
+          "sourceExpectation": "Prefer a cited vendor table, test report, or archived engineering worksheet before treating the declared value as stronger than a user declaration.",
+          "evidenceHierarchy": [
+            "vendor datasheet / technical guide with product-family wrinkling terminology and resistance or factor context",
+            "test report / lab sheet tied to the same panel family",
+            "archived accepted worksheet for the same product family"
+          ],
+          "sourceAttachmentGuidance": {
+            "acceptableForMetadataOnly": "A product-family technical guide may document accepted basis/factor context for wrinkling without by itself proving the exact numeric declared MPa value.",
+            "numericAuthorityRule": "Do not treat a declared MPa value as source-backed unless the attached artifact itself states the resistance/stress for the same product family or clearly identifies the worksheet/test line from which the number was copied."
+          },
+          "productFamilySourceGuidance": {
+            "sourceRef": "Paroc Panel System technical guide (ASS_533988), section 2.1 General, Table 6a/6b: “Wrinkling of the face layer in the span and at an intermediate support”.",
+            "sourceType": "vendor",
+            "basis": "characteristic-resistance",
+            "productContext": "PAROC AST/S/S+/F/F+/E/L panel families; guide gives product-family wrinkling gamma_m context, not a universal numeric wrinkling stress.",
+            "sourceNote": "Use this guide to document accepted product-family wrinkling terminology and factor context. Keep the declared MPa numeric value as user-declared unless the exact table/test/worksheet line supplying that number is attached.",
+            "attachmentStrength": "product-family-guidance-only",
+            "artifactHuntStatus": "no-numeric-artifact-found-in-repo",
+            "artifactHuntScope": [
+              "vendor wrinkling table with explicit MPa value for the same panel family/path",
+              "test report / lab sheet with wrinkling stress or resistance line",
+              "archived engineering worksheet identifying the copied wrinkling MPa line",
+              "product manual line that states the numeric wrinkling resistance/stress"
+            ],
+            "artifactHuntConclusion": "Current repo review found only product-family wrinkling terminology/factor guidance, not a numeric artifact strong enough to certify a declared MPa value for this path."
+          },
+          "acceptedMetadata": [
+            "declaredBasis",
+            "declaredSourceType",
+            "declaredDisplayUnit",
+            "declaredSourceRef",
+            "declaredSourceNote",
+            "declaredProductContext"
+          ],
+          "metadataGuidance": {
+            "declaredBasis": {
+              "label": "Basis của giá trị khai báo",
+              "values": {
+                "design-resistance": "Giá trị sức kháng/ứng suất thiết kế đã dùng trực tiếp trong kiểm tra (không chia thêm gammaM ngoài flow hiện tại).",
+                "characteristic-resistance": "Giá trị đặc trưng; cần note rõ nếu chưa chuyển về design basis trước khi đưa vào flow này.",
+                "test-result": "Kết quả thử nghiệm/raw lab result; chỉ nên dùng khi có note diễn giải cách chuyển về resistance dùng cho thiết kế.",
+                "vendor-table": "Giá trị lấy từ bảng vendor/datasheet; nên đi kèm product line / thickness / density / facing context.",
+                "user-note": "Ghi chú nội bộ/chưa có source cứng; giữ transparency là user-declared với reliability thấp hơn."
+              }
+            },
+            "declaredSourceType": {
+              "label": "Loại nguồn khai báo",
+              "values": {
+                "vendor": "Vendor datasheet / load table / technical manual",
+                "test": "Test report / lab sheet",
+                "worksheet": "Archived engineering worksheet / internal calc note",
+                "manual": "Manual user entry / remembered note",
+                "unknown": "Chưa rõ nguồn"
+              }
+            }
+          }
+        },
+        "fallbackApplied": false,
+        "fallbackMode": "approx",
+        "approxProvenance": {
+          "key": "sigma_w_approx",
+          "formula": "0.5 * sqrt(Ef * Ec * Gc)",
+          "coefficient": 0.5,
+          "inputs": [
+            "Ef",
+            "Ec",
+            "Gc"
+          ],
+          "status": "repo-formula-uncited",
+          "sourceType": "engineering-approximation",
+          "evidenceLevel": "no-direct-source-attached",
+          "provenanceNote": "Current repository approximation for wrinkling stress is kept visible as an engineering approximation only. No cited handbook, code commentary, vendor table, or archived worksheet in this repo currently justifies the retained 0.5 coefficient together with the exact Ef/Ec/Gc variable set.",
+          "sourceAttachmentStatus": "Approximation remains formula-transparent but source-incomplete until a product-family or handbook citation is attached."
+        },
+        "factorProvenance": {
+          "key": "gammaM_wrinkling",
+          "value": 1.2,
+          "status": "repo-factor-uncited",
+          "sourceType": "repository-default",
+          "evidenceLevel": "no-direct-source-attached",
+          "provenanceNote": "The wrinkling design factor is implemented and applied consistently, but no current repo artifact links the retained 1.2 value to a code clause, vendor recommendation, or archived accepted worksheet for the same product family.",
+          "sourceAttachmentStatus": "No direct source note currently justifies gammaM_wrinkling = 1.2 in this repository."
+        },
+        "limitComputationBoundary": "declared/approx provide a wrinkling-side stress candidate, but the final compression limit remains min(sigma_w_design, sigma_y_design)."
+      },
+      "supportCrushing": {
+        "resistance": {
+          "key": "core-bearing-stress",
+          "legacyAlias": "fCc",
+          "value": 0.1,
+          "unit": "N/mm²",
+          "status": "repo-constant-uncited",
+          "sourceType": "repository-default",
+          "evidenceLevel": "no-direct-source-attached",
+          "provenanceNote": "Legacy fCc default kept as the current support crushing/core bearing stress input until a cited product-specific source is attached.",
+          "sourceAttachmentStatus": "No direct handbook/datasheet/worksheet citation is attached for the retained 0.10 N/mm² default in this repository."
+        },
+        "factor": {
+          "key": "gammaM_crushing",
+          "legacyAlias": "gammaM_shear",
+          "value": 1.25,
+          "sharedWith": "gammaM_shear",
+          "status": "provisional-shared-factor",
+          "evidenceLevel": "no-direct-source-attached",
+          "provenanceNote": "Support crushing currently reuses the shear partial factor value. The dedicated crushing name is exposed for clarity while the numeric value remains shared until source-backed separation is available.",
+          "sourceAttachmentStatus": "No direct crushing-specific source has yet justified the retained shared 1.25 value or a numeric split from gammaM_shear."
+        }
+      },
+      "uplift": {
+        "inputSchema": {
+          "key": "screwStrength",
+          "version": 1,
+          "sourceFirst": true,
+          "expectedMeaning": "Declared per-fastener uplift resistance input used to convert solver-derived tension demand into fastening resistance.",
+          "preferredBasis": "design-resistance-per-fastener",
+          "acceptedBases": [
+            "design-resistance-per-fastener",
+            "characteristic-resistance-per-fastener",
+            "vendor-allowable-per-fastener",
+            "test-result-per-fastener",
+            "user-note-per-fastener"
+          ],
+          "unit": "kN",
+          "basisNote": "UI/report should show that screwStrength is interpreted as a per-fastener resistance in kN, because the same number can mean design resistance, characteristic resistance, vendor allowable, or raw test result.",
+          "sourceExpectation": "Prefer a cited fastener datasheet, project fastening schedule, test report, or archived worksheet before treating this input as stronger than a user declaration.",
+          "spacingMeaning": "screwSpacing is currently interpreted as spacing across panelWidth for a simplified fastener-count estimate, not as a fully detailed edge-distance/layout schedule.",
+          "countRule": {
+            "formula": "round(panelWidth / screwSpacing)",
+            "minimum": 1,
+            "status": "provisional-layout-rule",
+            "provenanceNote": "This count rule is a repository simplification used to convert spacing into an estimated number of fasteners across the panel width. No cited source currently justifies this exact rounding convention, tributary assumption, or edge-layout treatment."
+          },
+          "enablementRule": {
+            "formula": "panelType !== ceiling && screwStrength > 0",
+            "status": "derived-check-scope",
+            "provenanceNote": "Current implementation treats uplift as applicable for non-ceiling panels only when a positive fastener resistance input exists. This is an implementation scope rule, not yet a source-linked fastening design clause."
+          },
+          "acceptedMetadata": [
+            "basis",
+            "sourceType",
+            "sourceRef",
+            "sourceNote",
+            "fastenerContext",
+            "spacingMeaning",
+            "acquisitionPath"
+          ],
+          "metadataGuidance": {
+            "basis": {
+              "label": "Basis của sức kháng vít khai báo",
+              "values": {
+                "design-resistance-per-fastener": "Giá trị sức kháng thiết kế trên mỗi vít dùng trực tiếp trong kiểm tra hiện tại.",
+                "characteristic-resistance-per-fastener": "Giá trị đặc trưng trên mỗi vít; cần note rõ nếu chưa chuyển về design basis trước khi đưa vào flow này.",
+                "vendor-allowable-per-fastener": "Giá trị allowable / tabulated từ vendor, cần kèm điều kiện nền, tôn, chiều sâu bắn vít, và mode phá hoại.",
+                "test-result-per-fastener": "Kết quả thử nghiệm trên mỗi vít; chỉ nên dùng khi có note diễn giải cách chuyển sang giá trị dùng cho thiết kế.",
+                "user-note-per-fastener": "Ghi chú nội bộ/chưa có source cứng; giữ transparency là user-declared với reliability thấp hơn."
+              }
+            },
+            "sourceType": {
+              "label": "Loại nguồn sức kháng vít",
+              "values": {
+                "vendor": "Vendor fastener datasheet / fastening manual / load table",
+                "schedule": "Project fastening schedule / approved design note",
+                "test": "Test report / lab sheet",
+                "worksheet": "Archived engineering worksheet / internal calc note",
+                "manual": "Manual user entry / remembered note",
+                "unknown": "Chưa rõ nguồn"
+              }
+            },
+            "acquisitionPath": {
+              "label": "Acquisition path nếu chưa có numeric source cứng",
+              "guidance": "Nếu chưa có đúng dòng kN/vít, hãy ghi vendor fastener manufacturer data / approved fastening schedule / archived uplift worksheet mà dự án sẽ dùng để chốt con số. Đây chỉ là metadata chỉ đường, không tự nâng numeric path thành source-backed."
+            }
+          }
+        },
+        "declaredInput": {
+          "value": 8.5,
+          "unit": "kN",
+          "expectedUnit": "kN",
+          "expectedMeaning": "Declared per-fastener uplift resistance input used to convert solver-derived tension demand into fastening resistance.",
+          "preferredBasis": "design-resistance-per-fastener",
+          "basis": "vendor-allowable-per-fastener",
+          "sourceType": "vendor",
+          "sourceRef": "Fastener datasheet ABC rev.4, table 7",
+          "sourceNote": "Allowable pull-out for 0.5 mm skin over Z200 support; verify washer detail separately.",
+          "fastenerContext": "SDS 5.5 / support Z200 / sheet 0.5 mm / washer 19 mm",
+          "spacingMeaning": "Spacing measured along panel width for this simplified panel-line count.",
+          "isSourceDocumented": true,
+          "schemaVersion": 1,
+          "sourceFirst": true,
+          "basisNote": "UI/report should show that screwStrength is interpreted as a per-fastener resistance in kN, because the same number can mean design resistance, characteristic resistance, vendor allowable, or raw test result.",
+          "sourceExpectation": "Prefer a cited fastener datasheet, project fastening schedule, test report, or archived worksheet before treating this input as stronger than a user declaration."
+        },
+        "factor": {
+          "key": "gammaM_screw",
+          "value": 1.33,
+          "status": "repo-factor-uncited",
+          "sourceType": "repository-default",
+          "evidenceLevel": "no-direct-source-attached",
+          "provenanceNote": "The uplift design factor is implemented and applied consistently in the fastening resistance path, but no current repo artifact links the retained 1.33 value to a code clause, vendor recommendation, or archived accepted worksheet for the same fastener basis.",
+          "sourceAttachmentStatus": "No direct source note currently justifies gammaM_screw = 1.33 in this repository."
+        }
+      },
+      "checks": {
+        "sigmaLimit": {
+          "key": "sigmaLimit",
+          "label": "Giới hạn ứng suất nén / wrinkling",
+          "title": "Giới hạn ứng suất nén / wrinkling",
+          "source": "approx",
+          "classification": "engineering-approximation",
+          "reliability": "engineering-approximation",
+          "enabled": true,
+          "sourceMeta": {
+            "checkKey": "sigmaLimit",
+            "title": "Wrinkling / compressive limit",
+            "sourceType": "internal-formula",
+            "currentBasis": [
+              "src/calc/section.js#resolveWrinklingInput",
+              "src/calc/section.js#buildSectionProperties"
+            ],
+            "currentImplementation": "yield-only => sigma_limit = sigma_y_design. declared/approx => sigma_limit = min(sigma_w_design, sigma_y_design); sigma_w may come from declared input or approx formula 0.5*sqrt(Ef*Ec*Gc).",
+            "classification": "engineering-calculation",
+            "reliability": "engineering-calculation",
+            "primaryInputs": [
+              "steelYield",
+              "compressiveModulus",
+              "coreShearModulus",
+              "wrinklingStress",
+              "wrinklingMode"
+            ],
+            "sourceAnchorCandidates": [
+              "Vendor sandwich panel datasheet with wrinkling / local face instability resistance.",
+              "Sandwich panel handbook or code commentary giving wrinkling resistance expression for steel-faced panels.",
+              "Archived engineering worksheet that states wrinkling resistance derivation and safety factors for the same product family."
+            ],
+            "provenanceBreakdown": {
+              "declaredPath": [
+                {
+                  "item": "wrinklingStress input when wrinklingMode = declared",
+                  "status": "user-input-geometry",
+                  "classification": "user-declared",
+                  "basis": "The repository now treats wrinklingStress as a source-first declared resistance/stress input that should carry both a numeric MPa value and a stated basis/source context from the user.",
+                  "currentAnchor": "src/calc/section.js#WRINKLING_DECLARED_INPUT_SCHEMA",
+                  "evidenceNote": "Declared metadata now distinguishes design-resistance, characteristic-resistance, test-result, vendor-table, and user-note semantics. An attached product-family vendor guide now provides real wrinkling terminology and factor context, but the numeric MPa path remains user-supplied until the exact table/test/worksheet line for that number is attached.",
+                  "sourceGap": "A direct artifact hunt across the current repo found no vendor MPa table, test report, archived worksheet, or product-manual numeric line that proves the exact declared MPa value used for a case. Product-family guidance improves declared basis/source framing, but treat the numeric value as user-declared unless that numeric source line is supplied."
+                },
+                {
+                  "item": "Paroc Panel System technical guide (ASS_533988) — section 2.1 General, Table 6a/6b",
+                  "status": "source-linked",
+                  "classification": "user-declared",
+                  "basis": "The guide explicitly names “Wrinkling of the face layer in the span and at an intermediate support” and gives product-family material safety factors gamma_m for AST/S/S+/F/F+/E/L panel families.",
+                  "currentAnchor": "src/calc/section.js#WRINKLING_DECLARED_INPUT_SCHEMA.productFamilySourceGuidance",
+                  "evidenceNote": "This is strong enough to support declared-input semantics, product-family context, and factor/basis guidance. It is not by itself a direct numeric citation for any declared MPa wrinkling stress value.",
+                  "sourceGap": "Still attach the exact vendor table, test report, or accepted worksheet line if a specific declared MPa value is to be promoted beyond user-declared numeric input."
+                }
+              ],
+              "approxPath": [
+                {
+                  "item": "sigma_w_approx = 0.5 * sqrt(Ef * Ec * Gc)",
+                  "status": "repo-constant-uncited",
+                  "classification": "engineering-approximation",
+                  "basis": "The repository exposes a visible engineering approximation for wrinkling stress using face modulus Ef, compressive modulus Ec, and core shear modulus Gc.",
+                  "currentAnchor": "src/calc/section.js#WRINKLING_APPROX_PROVENANCE",
+                  "evidenceNote": "No cited handbook/code/vendor source in repo currently justifies the retained 0.5 coefficient together with this exact Ef/Ec/Gc variable set.",
+                  "sourceGap": "Approximation can be described as internal engineering approximation only, not source-linked resistance authority."
+                },
+                {
+                  "item": "gammaM_wrinkling = 1.2",
+                  "status": "source-gap",
+                  "classification": "source-gap",
+                  "basis": "Approx/declared wrinkling stresses are converted to design stress through a dedicated wrinkling factor.",
+                  "currentAnchor": "src/calc/section.js#WRINKLING_FACTOR",
+                  "evidenceNote": "The factor is implementation-visible, but no current artifact links 1.2 to a code clause, vendor recommendation, or archived accepted worksheet.",
+                  "sourceGap": "Do not present gammaM_wrinkling as source-backed until a real anchor is attached."
+                }
+              ],
+              "yieldBoundary": [
+                {
+                  "item": "Final sigma_limit boundary between wrinkling-side candidate and steel yield design stress",
+                  "status": "source-linked",
+                  "classification": "yield-governed",
+                  "basis": "The final check is intentionally bounded: yield-only bypasses wrinkling, while declared/approx still cap the final compression limit by steel yield design stress through min(sigma_w_design, sigma_y_design).",
+                  "currentAnchor": "src/calc/section.js#resolveWrinklingInput",
+                  "evidenceNote": "This is a truthful implementation boundary statement, not a new external citation for wrinkling resistance itself."
+                }
+              ]
+            },
+            "missingEvidence": [
+              "No cited external source currently attached for the approx formula coefficient 0.5 and variable set Ef, Ec, Gc.",
+              "Declared wrinkling input now has an internal schema, but no product-family-specific source note yet says which basis/source combinations are actually accepted for release use.",
+              "No product-family-specific calibration or vendor resistance table is attached in repo.",
+              "gammaM_wrinkling = 1.2 is implemented but not source-linked to a code clause in current artifacts."
+            ],
+            "safeExternalizationSteps": [
+              "Keep declared / approx / yield-only as separate provenance classes in transparency outputs and report text.",
+              "Expose the approx formula coefficient and gammaM_wrinkling as explicit source-gap metadata instead of implying citation authority.",
+              "When a real source appears, attach it first to the metadata records before changing any wrinkling formula.",
+              "Keep collecting declared-basis/source metadata in UI/report outputs before upgrading any reliability language beyond user-declared."
+            ],
+            "conclusion": "Current wrinkling limit is now clearer about declared-vs-approx-vs-yield boundary and the semantic meaning of declared input, but engineering authority remains partly internal / input-driven until a cited source is attached."
+          }
+        },
+        "bendingStress": {
+          "key": "bendingStress",
+          "label": "Ứng suất uốn",
+          "title": "Ứng suất uốn",
+          "source": "section-analysis",
+          "classification": "engineering-calculation",
+          "reliability": "engineering-calculation",
+          "enabled": true
+        },
+        "shearCapacity": {
+          "key": "shearCapacity",
+          "label": "Lực cắt lõi",
+          "title": "Lực cắt lõi",
+          "source": "core-shear-strength-input",
+          "classification": "input-resistance-check",
+          "reliability": "input-dependent",
+          "enabled": true
+        },
+        "supportCrushing": {
+          "key": "supportCrushing",
+          "label": "Ép dập gối tựa",
+          "title": "Ép dập gối tựa",
+          "source": "support-width-and-core-bearing-record",
+          "classification": "input-resistance-check",
+          "reliability": "input-dependent",
+          "enabled": true,
+          "sourceMeta": {
+            "checkKey": "supportCrushing",
+            "title": "Support crushing / core bearing",
+            "sourceType": "input-parameter",
+            "currentBasis": [
+              "src/calc/checks.js#buildReactionData",
+              "src/calc/section.js#SECTION_CONSTANTS",
+              "https://www.ruukki.com/building-envelopes/services-support/sandwich-panel-support/load-tables-for-sandwich-panels",
+              "https://rautagroup.com/en/calculation-of-sandwich-panels-in-traypan-a-convenient-tool-for-envelope-structures-design/"
+            ],
+            "currentImplementation": "F_Rd = supportCrushingResistance.value * panelWidth * supportWidth / gammaM_crushing; crushingRatio = R_comp / F_Rd. Legacy aliases fCc and gammaM_shear are preserved as compatibility mirrors.",
+            "classification": "input-resistance-check",
+            "reliability": "input-dependent",
+            "primaryInputs": [
+              "supportCrushingResistance.value (legacy alias: fCc)",
+              "panelWidth",
+              "supportWidths[]",
+              "reactionEnvelope",
+              "gammaM_crushing (legacy alias: gammaM_shear)"
+            ],
+            "provenanceBreakdown": {
+              "demandSide": [
+                {
+                  "item": "R_comp from reactionEnvelope",
+                  "status": "solver-derived",
+                  "basis": "Compression demand is derived from the solver reaction envelope at each support; this reaction-led support check flow is directionally consistent with vendor tool ecosystems that report support reactions/load-table checks for sandwich panels.",
+                  "currentAnchor": "src/calc/checks.js#buildReactionData",
+                  "evidenceNote": "Ruukki load-table/support pages and the Rauta article about Ruukki TrayPan both show support reactions as a real design output/check context, but they do not by themselves justify the repository numeric defaults below."
+                }
+              ],
+              "resistanceSide": [
+                {
+                  "item": "supportCrushingResistance record = 0.10 N/mm² (legacy alias: fCc)",
+                  "status": "repo-constant-uncited",
+                  "basis": "Implemented as a named resistance record in section data and mirrored back to legacy fCc for compatibility.",
+                  "currentAnchor": "src/calc/section.js#SUPPORT_CRUSHING_RESISTANCE",
+                  "evidenceNote": "External vendor pages reviewed in TKT-03C confirm that sandwich-panel design workflows do treat support reaction/bearing as a real limit-state context, but no reviewed source supplied this exact 0.10 N/mm² value for this repository/product basis.",
+                  "sourceGap": "No cited vendor table, handbook clause, or legacy worksheet in repo explains the origin or unit basis behind the retained default resistance value.",
+                  "externalizationCandidate": "Populate this record with product-specific citation, declared basis, and unit note once a source-backed bearing resistance artifact is available."
+                },
+                {
+                  "item": "gammaM_crushing = 1.25 (legacy shared value with gammaM_shear)",
+                  "status": "source-gap",
+                  "basis": "Current implementation now names the factor explicitly for support crushing, but still shares the same numeric value as the shear partial factor until a dedicated source is attached.",
+                  "currentAnchor": "src/calc/section.js#SUPPORT_CRUSHING_FACTOR",
+                  "evidenceNote": "The reviewed external sources support the existence of support-related design checks, but they did not provide a crushing-specific material factor that would justify retaining or splitting the current 1.25 value in this repo.",
+                  "sourceGap": "Repo still does not document why the shared 1.25 factor is appropriate for support crushing, or whether it is only a conservative placeholder inherited from shear design.",
+                  "externalizationCandidate": "Keep the dedicated crushing name and later detach its numeric value from gammaM_shear once a source-backed crushing factor is identified."
+                },
+                {
+                  "item": "panelWidth and supportWidths[] geometry",
+                  "status": "user-input-geometry",
+                  "basis": "Bearing area is computed directly from user-entered panel width and support width per support.",
+                  "currentAnchor": "src/calc/checks.js#buildReactionData"
+                }
+              ]
+            },
+            "sourceAnchorCandidates": [
+              "Vendor panel bearing / support reaction capacity table versus support width.",
+              "Product technical manual stating allowable support bearing stress / crushing resistance.",
+              "Internal legacy worksheet already accepted by the owner if it cites origin of fCc and factor usage."
+            ],
+            "missingEvidence": [
+              "The supportCrushingResistance default record is still uncited in repo artifacts even though its provenance is now named explicitly.",
+              "gammaM_crushing is currently only a dedicated alias over the shared 1.25 shear-factor value; no source note yet proves that factor choice for crushing.",
+              "The external sources reviewed in TKT-03C only validated the existence of support-reaction/support-width checking in vendor ecosystems, not the repository resistance number or factor.",
+              "No external table/worksheet currently reconciles reaction-to-bearing conversion for this product line."
+            ],
+            "safeExternalizationSteps": [
+              "Keep supportCrushingResistance as the named bearing-resistance record and let future product data override it with citation + unit metadata.",
+              "Expose gammaM_crushing explicitly in transparency/report text as a provisional shared factor rather than an assumed source-backed crushing clause.",
+              "Prefer a product-specific vendor table or an archived legacy worksheet that states both allowable support bearing stress and the factor basis before changing the numeric defaults.",
+              "Attach one fixed support-bearing worksheet or vendor table so the resistance side can be reconciled without changing solver behavior."
+            ],
+            "conclusion": "Current crushing check is formula-simple and clearly aligned with a real support-reaction design context, but the resistance side is still anchored only to repository constants and user geometry inputs."
+          }
+        },
+        "uplift": {
+          "key": "uplift",
+          "label": "Liên kết chống nhổ",
+          "title": "Liên kết chống nhổ",
+          "source": "fastener-capacity-input",
+          "classification": "input-resistance-check",
+          "reliability": "input-dependent",
+          "enabled": true,
+          "sourceMeta": {
+            "checkKey": "uplift",
+            "title": "Fastener uplift / pull-out",
+            "sourceType": "input-parameter",
+            "currentBasis": [
+              "src/calc/runPanelAnalysis.js#upliftEnabled",
+              "src/calc/checks.js#buildReactionData",
+              "src/calc/section.js#FASTENER_UPLIFT_INPUT_SCHEMA",
+              "src/calc/section.js#FASTENER_UPLIFT_FACTOR"
+            ],
+            "currentImplementation": "upliftEnabled = panelType !== ceiling && screwStrength > 0; screwCount = round(panelWidth / screwSpacing) bounded to >=1; T_Rd = screwStrength * 1000 * screwCount / gammaM_screw; upliftRatio = R_tension / T_Rd.",
+            "classification": "input-resistance-check",
+            "reliability": "input-dependent",
+            "primaryInputs": [
+              "panelType",
+              "screwStrength",
+              "screwSpacing",
+              "panelWidth",
+              "reactionEnvelope",
+              "gammaM_screw"
+            ],
+            "provenanceBreakdown": {
+              "demandSide": [
+                {
+                  "item": "R_tension from reactionEnvelope",
+                  "status": "solver-derived",
+                  "classification": "engineering-calculation",
+                  "basis": "Uplift demand is taken from solver-derived support reactions; negative support reactions are converted into tensile demand per support.",
+                  "currentAnchor": "src/calc/checks.js#buildReactionData",
+                  "evidenceNote": "This is the better-anchored half of the uplift check: reaction sign and uplift appearance come from the solver path already covered by internal analytical/benchmark tests."
+                }
+              ],
+              "resistanceSide": [
+                {
+                  "item": "screwStrength input as per-fastener uplift resistance",
+                  "status": "user-declared-input",
+                  "classification": "user-declared",
+                  "basis": "The repository now treats screwStrength as a source-first declared per-fastener resistance input, not as an inherently source-backed fastener capacity value.",
+                  "currentAnchor": "src/calc/section.js#FASTENER_UPLIFT_INPUT_SCHEMA",
+                  "evidenceNote": "Schema now makes the intended semantic meaning explicit: per-fastener kN resistance with stated basis/source context still expected from the user or project artifacts. A targeted artifact hunt did confirm a real vendor-side acquisition path: Ruukki sandwich-panel installation manuals repeatedly state that fasteners are dimensioned case by case by the designer according to fastener-manufacturer instructions / research results, which supports asking for manufacturer data or an approved fastening schedule before trusting the number.",
+                  "sourceGap": "Repo still has no attached vendor datasheet, schedule, test report, or archived worksheet proving the exact per-fastener resistance number used for a case. The reviewed Ruukki manuals improved the acquisition path only; they did not provide a numeric kN-per-fastener pull-out/uplift line strong enough to certify screwStrength itself."
+                },
+                {
+                  "item": "screwCount = round(panelWidth / screwSpacing) with minimum 1",
+                  "status": "provisional-rule",
+                  "classification": "source-gap",
+                  "basis": "Current implementation converts spacing into a simplified fastener count across the panel width using a nearest-integer rule.",
+                  "currentAnchor": "src/calc/checks.js#buildReactionData",
+                  "evidenceNote": "This is visible and repeatable, but no cited source currently justifies the exact rounding convention, tributary assumption, or edge-distance treatment.",
+                  "sourceGap": "Do not present the count rule as vendor- or code-backed layout logic until a fastening schedule, worksheet, or manual line is attached."
+                },
+                {
+                  "item": "gammaM_screw = 1.33",
+                  "status": "source-gap",
+                  "classification": "source-gap",
+                  "basis": "Per-fastener uplift resistance is converted to design resistance through a dedicated screw factor.",
+                  "currentAnchor": "src/calc/section.js#FASTENER_UPLIFT_FACTOR",
+                  "evidenceNote": "The factor is implementation-visible, but current repo artifacts do not link 1.33 to a code clause, vendor recommendation, or archived accepted worksheet for the same fastener basis.",
+                  "sourceGap": "Do not present gammaM_screw as source-backed until a real anchor is attached."
+                }
+              ],
+              "enablement": [
+                {
+                  "item": "upliftEnabled = panelType !== ceiling && screwStrength > 0",
+                  "status": "derived-enablement",
+                  "classification": "input-resistance-check",
+                  "basis": "The check is currently enabled only when the panel is not tagged as ceiling and a positive fastener resistance input exists.",
+                  "currentAnchor": "src/calc/runPanelAnalysis.js#upliftEnabled",
+                  "evidenceNote": "This is an implementation scope rule that makes reporting behavior explicit; it is not yet a source-linked statement that ceiling panels can never require uplift verification.",
+                  "sourceGap": "Keep this as explicit enablement semantics, not as a code- or vendor-backed exclusion rule, until a fastening design source defines applicability limits."
+                }
+              ]
+            },
+            "sourceAnchorCandidates": [
+              "Fastener vendor pull-out / pull-over datasheet with spacing/layout assumptions.",
+              "Project fastening schedule specifying per-fastener design resistance.",
+              "Code/manual clause for converting characteristic fastener resistance into design T_Rd with relevant safety factor.",
+              "Vendor installation manuals that explicitly redirect designers to fastener-manufacturer instructions / research results can be attached as acquisition-path context only, not as numeric screwStrength authority."
+            ],
+            "missingEvidence": [
+              "No cited source explains screwCount rounding rule versus actual edge/tributary fastener layout.",
+              "screwStrength now has schema-level semantic meaning, but the numeric path still lacks an attached vendor/schedule/test/worksheet artifact for the exact case value.",
+              "gammaM_screw = 1.33 is not yet linked to a clause / vendor recommendation in repo notes.",
+              "The uplift enablement rule is an implementation scope statement, not yet a source-linked fastening applicability clause."
+            ],
+            "safeExternalizationSteps": [
+              "Keep solver-derived uplift demand clearly separated from user-declared/input-dependent fastening resistance in transparency outputs.",
+              "Expose screwStrength as a per-fastener declared resistance input with basis/source metadata before changing any numeric uplift formula.",
+              "Keep the screwCount spacing-to-count conversion labeled as provisional until one fastening schedule or worksheet is reconciled.",
+              "When a real source appears, attach it first to screwStrength metadata, count-rule metadata, and gammaM_screw provenance before changing uplift language or formulas."
+            ],
+            "conclusion": "Uplift demand sign handling is solver-covered, while resistance-side trust still depends on declared per-fastener strength, a provisional spacing-to-count rule, and an uncited gammaM_screw factor."
+          }
+        },
+        "deflection": {
+          "key": "deflection",
+          "label": "Độ võng SLS",
+          "title": "Độ võng SLS",
+          "source": "solver-response",
+          "classification": "limit-state-response",
+          "reliability": "engineering-calculation",
+          "enabled": true
+        }
+      }
+    }
+  },
+  "compareSnapshot": {
+    "enabled": false,
+    "variantCount": 1,
+    "summary": null,
+    "variants": []
+  }
+}

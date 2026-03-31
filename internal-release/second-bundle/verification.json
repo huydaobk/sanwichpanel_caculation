@@ -1,0 +1,66 @@
+{
+  "appDisplayName": "Greenpan Design",
+  "version": "0.0.1",
+  "releaseStamp": "Greenpan Design v0.0.1",
+  "exportedAt": "2026-03-31T01:03:52.009Z",
+  "passCaseSummary": {
+    "rationale": "Second internal bundle uses a real pass case tuned from the first bundle by increasing declared screw resistance and widening support widths while keeping the same overall project-mode export flow.",
+    "changedInputs": {
+      "screwStrength": 12,
+      "supportWidths": [
+        80,
+        80,
+        80
+      ]
+    }
+  },
+  "snapshot": {
+    "path": "/tmp/repo-review/sanwichpanel_caculation/internal-release/second-bundle/internal-release-demo-case-02-pass--snapshot-project--20260331-010352z.json",
+    "artifactScope": "snapshot-project",
+    "internalReleaseTrack": "internal",
+    "internalReleaseStamp": "Greenpan Design v0.0.1 · internal · 2026-03-31T01:03:52.009Z",
+    "internalReleaseBundleLabel": "snapshot-project | Greenpan Design v0.0.1 · internal · 2026-03-31T01:03:52.009Z",
+    "projectName": "Internal Release Demo Case 02 - Pass"
+  },
+  "result": {
+    "path": "/tmp/repo-review/sanwichpanel_caculation/internal-release/second-bundle/internal-release-demo-case-02-pass--result-package-project--20260331-010352z.json",
+    "artifactScope": "result-package-project",
+    "internalReleaseTrack": "internal",
+    "internalReleaseStamp": "Greenpan Design v0.0.1 · internal · 2026-03-31T01:03:52.009Z",
+    "internalReleaseBundleLabel": "result-package-project | Greenpan Design v0.0.1 · internal · 2026-03-31T01:03:52.009Z",
+    "projectName": "Internal Release Demo Case 02 - Pass",
+    "status": "pass",
+    "governingCase": {
+      "key": "uplift",
+      "label": "Liên kết chống nhổ",
+      "ratio": 0.891707,
+      "status": "pass",
+      "categoryKey": "overall",
+      "hingesTriggered": false
+    },
+    "utilizationRatios": {
+      "bending": 0.61637,
+      "support": 0.61637,
+      "shear": 0.838071,
+      "crushing": 0.875154,
+      "uplift": 0.891707,
+      "deflection": 0.482661
+    },
+    "pairedArtifactScopes": [
+      "snapshot-project",
+      "result-package-project"
+    ]
+  },
+  "pairingCheck": {
+    "sameTrack": true,
+    "sameStamp": true,
+    "pairedScopes": [
+      "snapshot-project",
+      "result-package-project"
+    ],
+    "expectedPairedScopes": [
+      "snapshot-project",
+      "result-package-project"
+    ]
+  }
+}

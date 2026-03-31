@@ -1,0 +1,238 @@
+{
+  "schemaVersion": "1.3.1",
+  "packageKind": "greenpan-analysis-snapshot",
+  "exportedAt": "2026-03-31T00:59:31.402Z",
+  "appVersion": "0.0.1",
+  "exportMeta": {
+    "fileName": "internal-release-demo-case-01--snapshot-project--20260331-005931z.json",
+    "exportedAtUtc": "2026-03-31T00:59:31Z",
+    "exportedDateUtc": "2026-03-31",
+    "appVersion": "0.0.1",
+    "appDisplayName": "Greenpan Design",
+    "artifactBaseName": "Greenpan-Design-Setup",
+    "artifactScope": "snapshot-project",
+    "packageKind": "greenpan-analysis-snapshot",
+    "projectSlug": "internal-release-demo-case-01",
+    "releaseStamp": "Greenpan Design v0.0.1",
+    "releaseCaption": "Greenpan Design v0.0.1 · 2026-03-31T00:59:31.402Z",
+    "releaseChannel": "stable",
+    "internalReleaseTrack": "internal",
+    "internalReleaseStamp": "Greenpan Design v0.0.1 · internal · 2026-03-31T00:59:31.402Z",
+    "internalReleaseBundleLabel": "snapshot-project | Greenpan Design v0.0.1 · internal · 2026-03-31T00:59:31.402Z"
+  },
+  "artifactMeta": {
+    "fileName": "internal-release-demo-case-01--snapshot-project--20260331-005931z.json",
+    "exportedAtUtc": "2026-03-31T00:59:31Z",
+    "exportedDateUtc": "2026-03-31",
+    "appVersion": "0.0.1",
+    "appDisplayName": "Greenpan Design",
+    "artifactBaseName": "Greenpan-Design-Setup",
+    "artifactScope": "snapshot-project",
+    "packageKind": "greenpan-analysis-snapshot",
+    "projectSlug": "internal-release-demo-case-01",
+    "releaseStamp": "Greenpan Design v0.0.1",
+    "releaseCaption": "Greenpan Design v0.0.1 · 2026-03-31T00:59:31.402Z",
+    "releaseChannel": "stable",
+    "internalReleaseTrack": "internal",
+    "internalReleaseStamp": "Greenpan Design v0.0.1 · internal · 2026-03-31T00:59:31.402Z",
+    "internalReleaseBundleLabel": "snapshot-project | Greenpan Design v0.0.1 · internal · 2026-03-31T00:59:31.402Z",
+    "schemaVersion": "1.3.1",
+    "snapshotRole": "app-state",
+    "packageLabel": "Snapshot dự án",
+    "bundleMembers": [
+      "snapshot-package"
+    ]
+  },
+  "appState": {
+    "compareModeEnabled": false,
+    "compareActiveVariantId": "variant-a",
+    "appDisplayName": "Greenpan Design",
+    "releaseChannel": "stable",
+    "releaseStamp": "Greenpan Design v0.0.1"
+  },
+  "importSummary": {
+    "packageLabel": "Snapshot dự án",
+    "artifactScope": "snapshot-project",
+    "projectName": "Internal Release Demo Case 01",
+    "compareModeEnabled": false,
+    "internalReleaseTrack": "internal",
+    "internalReleaseBundleLabel": "snapshot-project | Greenpan Design v0.0.1 · internal · 2026-03-31T00:59:31.402Z",
+    "variantCount": 1,
+    "activeVariantId": "variant-a",
+    "activeVariantLabel": "Release Case",
+    "variants": [
+      {
+        "id": "variant-a",
+        "label": "Release Case"
+      }
+    ],
+    "schemaVersion": "1.3.1",
+    "appVersion": "0.0.1"
+  },
+  "configSnapshot": {
+    "projectName": "Internal Release Demo Case 01",
+    "panelType": "external",
+    "internalWallType": "normal",
+    "coreThickness": 50,
+    "skinOut": 0.45,
+    "skinIn": 0.45,
+    "panelWidth": 1000,
+    "steelYield": 280,
+    "coreShearStrength": 0.12,
+    "coreShearModulus": 3.5,
+    "compressiveModulus": 4,
+    "wrinklingMode": "approx",
+    "wrinklingStress": 120,
+    "wrinklingStressBasis": "design-resistance",
+    "wrinklingStressSourceType": "vendor",
+    "wrinklingStressUnit": "MPa",
+    "wrinklingStressSourceRef": "Vendor wrinkling table rev.2",
+    "wrinklingStressSourceNote": "Locked internal release fixture.",
+    "wrinklingStressProductContext": "Panel family GP-1000",
+    "redistributionMode": "elastic",
+    "kappaShear": 1,
+    "coreDensity": 42,
+    "windPressure": 0.9,
+    "windDirection": "suction",
+    "tempOut": 60,
+    "tempIn": 25,
+    "gammaF_thermal": 1.5,
+    "screwStrength": 8.5,
+    "screwStrengthBasis": "vendor-allowable-per-fastener",
+    "screwStrengthSourceType": "vendor",
+    "screwStrengthUnit": "kN",
+    "screwStrengthSourceRef": "Fastener datasheet ABC rev.4, table 7",
+    "screwStrengthSourceNote": "Allowable pull-out for 0.5 mm skin over Z200 support; verify washer detail separately.",
+    "screwStrengthFastenerContext": "SDS 5.5 / support Z200 / sheet 0.5 mm / washer 19 mm",
+    "screwStrengthSpacingMeaning": "Spacing measured along panel width for this simplified panel-line count.",
+    "screwSpacing": 1000,
+    "deflectionLimit": 200,
+    "creepFactor": 2.4,
+    "creepFactorBending": 0,
+    "spans": [
+      3,
+      3
+    ],
+    "supportWidths": [
+      60,
+      60,
+      60
+    ],
+    "deadLoadMode": "manual",
+    "deadLoadManual_kPa": 0.18,
+    "liveLoad_kPa": 0.25,
+    "gammaG": 1.35,
+    "gammaQ": 1.5,
+    "enableSpanDistributedLoads": true,
+    "deadLoadBySpan_kPa": [
+      0.18,
+      0.22
+    ],
+    "liveLoadBySpan_kPa": [
+      0.25,
+      0.1
+    ],
+    "pointLoads": [
+      {
+        "x_m": 1.5,
+        "P_kN": 0.3,
+        "note": "Đèn",
+        "type": "permanent"
+      },
+      {
+        "x_m": 4.5,
+        "P_kN": 0.2,
+        "note": "Máng cáp",
+        "type": "variable"
+      }
+    ]
+  },
+  "compareSnapshot": {
+    "variantCount": 1,
+    "variants": [
+      {
+        "id": "variant-a",
+        "label": "Release Case",
+        "name": "Release Case",
+        "config": {
+          "projectName": "Internal Release Demo Case 01",
+          "panelType": "external",
+          "internalWallType": "normal",
+          "coreThickness": 50,
+          "skinOut": 0.45,
+          "skinIn": 0.45,
+          "panelWidth": 1000,
+          "steelYield": 280,
+          "coreShearStrength": 0.12,
+          "coreShearModulus": 3.5,
+          "compressiveModulus": 4,
+          "wrinklingMode": "approx",
+          "wrinklingStress": 120,
+          "wrinklingStressBasis": "design-resistance",
+          "wrinklingStressSourceType": "vendor",
+          "wrinklingStressUnit": "MPa",
+          "wrinklingStressSourceRef": "Vendor wrinkling table rev.2",
+          "wrinklingStressSourceNote": "Locked internal release fixture.",
+          "wrinklingStressProductContext": "Panel family GP-1000",
+          "redistributionMode": "elastic",
+          "kappaShear": 1,
+          "coreDensity": 42,
+          "windPressure": 0.9,
+          "windDirection": "suction",
+          "tempOut": 60,
+          "tempIn": 25,
+          "gammaF_thermal": 1.5,
+          "screwStrength": 8.5,
+          "screwStrengthBasis": "vendor-allowable-per-fastener",
+          "screwStrengthSourceType": "vendor",
+          "screwStrengthUnit": "kN",
+          "screwStrengthSourceRef": "Fastener datasheet ABC rev.4, table 7",
+          "screwStrengthSourceNote": "Allowable pull-out for 0.5 mm skin over Z200 support; verify washer detail separately.",
+          "screwStrengthFastenerContext": "SDS 5.5 / support Z200 / sheet 0.5 mm / washer 19 mm",
+          "screwStrengthSpacingMeaning": "Spacing measured along panel width for this simplified panel-line count.",
+          "screwSpacing": 1000,
+          "deflectionLimit": 200,
+          "creepFactor": 2.4,
+          "creepFactorBending": 0,
+          "spans": [
+            3,
+            3
+          ],
+          "supportWidths": [
+            60,
+            60,
+            60
+          ],
+          "deadLoadMode": "manual",
+          "deadLoadManual_kPa": 0.18,
+          "liveLoad_kPa": 0.25,
+          "gammaG": 1.35,
+          "gammaQ": 1.5,
+          "enableSpanDistributedLoads": true,
+          "deadLoadBySpan_kPa": [
+            0.18,
+            0.22
+          ],
+          "liveLoadBySpan_kPa": [
+            0.25,
+            0.1
+          ],
+          "pointLoads": [
+            {
+              "x_m": 1.5,
+              "P_kN": 0.3,
+              "note": "Đèn",
+              "type": "permanent"
+            },
+            {
+              "x_m": 4.5,
+              "P_kN": 0.2,
+              "note": "Máng cáp",
+              "type": "variable"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
