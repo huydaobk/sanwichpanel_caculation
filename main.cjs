@@ -15,9 +15,9 @@ function createWindow() {
     title: `${APP_DISPLAY_NAME} v${APP_VERSION}`,
     icon: path.join(__dirname, 'dist', 'logo_app.ico'),
     webPreferences: {
-
-      nodeIntegration: true,
-      contextIsolation: false
+      preload: path.join(__dirname, 'preload.cjs'),
+      nodeIntegration: false,
+      contextIsolation: true
     },
     autoHideMenuBar: true, // Ẩn thanh menu mặc định cho gọn
   });
@@ -33,6 +33,11 @@ ipcMain.handle('release-meta', () => ({
   releaseChannel: app.getVersion().includes('-') ? 'pre-release' : 'stable',
   releaseStamp: `${APP_DISPLAY_NAME} v${app.getVersion()}`,
 }));
+
+ipcMain.on('install-update', () => {
+  autoUpdater.quitAndInstall();
+});
+
 
 function sendUpdateStatus(event, payload = {}) {
   if (!mainWindow || mainWindow.isDestroyed()) {
@@ -80,7 +85,7 @@ function initAutoUpdater() {
 
   autoUpdater.on('update-downloaded', (info) => {
     sendUpdateStatus('downloaded', { version: info?.version });
-    setTimeout(() => autoUpdater.quitAndInstall(), 1200);
+    // Dừng ở đây, đợi user trigger qua IPC
   });
 
   autoUpdater.on('error', (err) => {

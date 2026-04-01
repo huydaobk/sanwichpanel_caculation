@@ -1,14 +1,14 @@
-import React, { useMemo, useRef, useState } from 'react';
+import './App.css';
+import React, { useMemo, useRef } from 'react';
+import { useAppState } from './hooks/useAppState';
+import { useCalculation } from './hooks/useCalculation';
 import { APP_DISPLAY_NAME, APP_VERSION, buildReleaseStamp, resolveReleaseChannel, resolveRuntimeAppVersion } from './releaseMeta';
 import {
   SECTION_CONSTANTS,
   DEFAULT_REDISTRIBUTION_MODE,
   DEFAULT_WRINKLING_MODE,
-  runPanelAnalysis,
-  buildCompareExecutiveSummary,
   buildResultPackage,
   buildAppSnapshotPackage,
-  buildExportFileName,
   APP_SNAPSHOT_KIND,
   CAPACITY_CHECK_KEYS,
   CAPACITY_CHECK_LABELS,
@@ -39,20 +39,13 @@ const {
   COMPARE_STATUS_LABELS,
   REPORT_BADGE_TONE_CLASSNAMES,
   createDefaultConfig,
-  safeJsonClone,
   cloneConfig,
-  sanitizeText,
-  normalizeIsoTimestamp,
-  isPlainObject,
   getSafeLocalStorage,
   formatArtifactScopeLabel,
   summarizeVariantLabels,
   buildImportSuccessMessage,
   STORAGE_KEYS,
   PRESET_LIMIT,
-  createSnapshotTemplate,
-  normalizeSnapshotVariantLabel,
-  normalizeSnapshotVariantId,
   normalizeCompareVariantsForSnapshot,
   normalizeImportedSnapshot,
   downloadJsonFile,
@@ -60,17 +53,12 @@ const {
   buildDefaultPresetName,
   buildPresetSummary,
   normalizePresetLibrary,
-  loadPresetLibrary,
   persistPresetLibrary,
   createVariant,
   normalizeVariantLabel,
   formatRatioPercent,
-  buildCompareDeltaText,
-  buildCompareMetricRows,
   TRANSPARENCY_RELIABILITY_LABELS,
   TRANSPARENCY_CLASSIFICATION_LABELS,
-  getTransparencyLabel,
-  getTransparencyTone,
   TRANSPARENCY_TONE_CLASSNAMES
 } = Constants;
 import {
@@ -88,38 +76,29 @@ import {
   CeilingSchematic,
   BeamDiagram
 } from './components/ReportUI';
+import {
+  CustomTooltip,
+  ReactionLegend,
+  REACTION_PASS_COLOR,
+  REACTION_FAIL_COLOR,
+  REACTION_LIMIT_COLOR,
+  REACTION_LIMIT_BORDER,
+} from './components/ChartTooltip';
 export default function GreenpanDesign_Final() {
-  const [config, setConfig] = useState(() => createDefaultConfig());
-  const [compareVariants, setCompareVariants] = useState(() => [
-    createVariant('variant-a', COMPARE_VARIANT_LABELS[0], createDefaultConfig()),
-  ]);
-  const [compareModeEnabled, setCompareModeEnabled] = useState(false);
-  const [compareActiveVariantId, setCompareActiveVariantId] = useState('variant-a');
-  const [snapshotWorkflowMessage, setSnapshotWorkflowMessage] = useState('');
-  const [presetLibraryWarning, setPresetLibraryWarning] = useState('');
-  const [presetLibrary, setPresetLibrary] = useState(() => {
-    const storage = getSafeLocalStorage();
-    if (!storage) return [];
-    try {
-      const raw = storage.getItem(STORAGE_KEYS.presetLibrary);
-      if (!raw) return [];
-      return normalizePresetLibrary(JSON.parse(raw));
-    } catch (error) {
-      console.warn('Failed to hydrate preset library state', error);
-      try {
-        storage.removeItem(STORAGE_KEYS.presetLibrary);
-      } catch (cleanupError) {
-        console.warn('Failed to clear corrupted preset library during state init', cleanupError);
-      }
-      return [];
-    }
-  });
-  const [presetDraftName, setPresetDraftName] = useState('');
-  const [presetDraftNote, setPresetDraftNote] = useState('');
-  const [activeTab, setActiveTab] = useState('input');
-  const [printMode, setPrintMode] = useState(false);
-  const [updateStatus, setUpdateStatus] = useState(null);
-  const [appVersion, setAppVersion] = useState('');
+  const {
+    state,
+    setConfig, setCompareVariants, setCompareModeEnabled, setCompareActiveVariantId,
+    setSnapshotWorkflowMessage, setPresetLibraryWarning, setPresetLibrary,
+    setPresetDraftName, setPresetDraftNote, setActiveTab, setPrintMode,
+    setUpdateStatus, setAppVersion
+  } = useAppState();
+
+  const {
+    config, compareVariants, compareModeEnabled, compareActiveVariantId,
+    snapshotWorkflowMessage, presetLibraryWarning, presetLibrary,
+    presetDraftName, presetDraftNote, activeTab, printMode,
+    updateStatus, appVersion
+  } = state;
   const fallbackAppVersion = typeof window !== 'undefined'
     ? resolveRuntimeAppVersion(window?.electronAPI?.appVersion, window?.appVersion, APP_VERSION)
     : APP_VERSION;
@@ -158,76 +137,11 @@ export default function GreenpanDesign_Final() {
     }
   }, []);
 
-  const compareResults = useMemo(() => (
-    compareVariants.map((variant) => ({
-      ...variant,
-      summary: runPanelAnalysis(variant.config, { defaultRedistributionMode: DEFAULT_REDISTRIBUTION_MODE }).summary,
-    }))
-  ), [compareVariants]);
-
-  const compareMetricRows = useMemo(() => {
-    if (!compareModeEnabled || compareResults.length < 2) return [];
-    const firstConfig = compareResults[0]?.config || config;
-    const baseline = compareResults[0]?.summary;
-    const rowMap = new Map();
-
-    compareResults.forEach((variant) => {
-      buildCompareMetricRows(variant.summary, variant.config || firstConfig).forEach((row) => {
-        if (!rowMap.has(row.key)) {
-          rowMap.set(row.key, { key: row.key, label: row.label, values: [] });
-        }
-
-        let diffHint = null;
-        if (baseline && variant.id !== compareResults[0]?.id) {
-          if (row.key === 'ratio') {
-            diffHint = buildCompareDeltaText(
-              Number(baseline?.governingCases?.overall?.ratio || 0),
-              Number(variant.summary?.governingCases?.overall?.ratio || 0),
-              { inverse: true },
-            );
-          }
-          if (row.key === 'deflection') {
-            diffHint = buildCompareDeltaText(
-              Number(baseline?.ratios?.deflection || 0),
-              Number(variant.summary?.ratios?.deflection || 0),
-              { inverse: true },
-            );
-          }
-          if (row.key === 'crushing') {
-            diffHint = buildCompareDeltaText(
-              Number(baseline?.ratios?.crushing || 0),
-              Number(variant.summary?.ratios?.crushing || 0),
-              { inverse: true },
-            );
-          }
-          if (row.key === 'uplift') {
-            diffHint = buildCompareDeltaText(
-              Number(baseline?.ratios?.uplift || 0),
-              Number(variant.summary?.ratios?.uplift || 0),
-              { inverse: true },
-            );
-          }
-        }
-
-        rowMap.get(row.key).values.push({
-          variantId: variant.id,
-          value: row.value,
-          tone: row.tone,
-          subValue: row.subValue,
-          diffHint,
-          isBest: compareExecutiveSummary.bestVariantId === variant.id && ['status', 'ratio', 'deflection', 'crushing', 'uplift'].includes(row.key),
-        });
-      });
-    });
-
-    return Array.from(rowMap.values());
-  }, [compareModeEnabled, compareResults, config, compareExecutiveSummary.bestVariantId]);
-
-  const compareExecutiveSummary = useMemo(() => (
-    compareModeEnabled && compareResults.length >= 2
-      ? buildCompareExecutiveSummary(compareResults)
-      : buildCompareExecutiveSummary([])
-  ), [compareModeEnabled, compareResults]);
+  const { compareResults, compareExecutiveSummary, compareMetricRows, results } = useCalculation(
+    state.config || config,
+    compareModeEnabled,
+    compareVariants
+  );
 
   const handleRenameCompareVariant = (variantId, rawLabel) => {
     const fallback = compareVariants.find((variant) => variant.id === variantId)?.name
@@ -543,13 +457,7 @@ export default function GreenpanDesign_Final() {
     }
   };
 
-  const results = useMemo(() => {
-    const { summary } = runPanelAnalysis(config, {
-      defaultRedistributionMode: DEFAULT_REDISTRIBUTION_MODE,
-      compareSummary: compareExecutiveSummary,
-    });
-    return summary;
-  }, [config, compareExecutiveSummary]);
+
 
   const distributedLoadRows = useMemo(() => buildPerSpanLoadRows(results), [results]);
   const perSpanSummaryItems = useMemo(() => buildPerSpanLoadSummary(distributedLoadRows), [distributedLoadRows]);
@@ -625,56 +533,7 @@ export default function GreenpanDesign_Final() {
     })
     .filter(Boolean);
 
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-white p-3 border border-gray-200 shadow-lg rounded text-xs">
-          <p className="font-bold mb-1">{typeof label === 'number' ? `Vị trí: ${label} m` : label}</p>
-          {payload.map((entry, index) => {
-            let unit = '';
-            if (entry.dataKey === 'moment') unit = 'kNm';
-            else if (entry.dataKey.includes('deflection')) unit = 'mm';
-            else if (entry.dataKey.includes('limit')) unit = 'mm';
-            else if (entry.dataKey === 'shear') unit = 'kN';
-            else if (entry.dataKey === 'R_Ed' || entry.dataKey === 'F_Rd') unit = 'kN';
-
-            return (
-              <div key={index} className="flex items-center gap-2 mb-1">
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }}></span>
-                <span>{entry.name}: <b>{entry.value}</b> {unit}</span>
-              </div>
-            );
-          })}
-        </div>
-      );
-    }
-    return null;
-  };
-
-  const REACTION_PASS_COLOR = '#22c55e';
-  const REACTION_FAIL_COLOR = '#ef4444';
-  const REACTION_LIMIT_COLOR = '#e5e7eb';
-  const REACTION_LIMIT_BORDER = '#9ca3af';
-
-  const ReactionLegend = () => (
-    <div className="flex flex-wrap items-center justify-center gap-4 text-[11px]">
-      <span className="flex items-center gap-2">
-        <span className="h-3 w-3 rounded-sm" style={{ backgroundColor: REACTION_PASS_COLOR }} />
-        Phản lực đạt
-      </span>
-      <span className="flex items-center gap-2">
-        <span className="h-3 w-3 rounded-sm" style={{ backgroundColor: REACTION_FAIL_COLOR }} />
-        Phản lực không đạt
-      </span>
-      <span className="flex items-center gap-2">
-        <span
-          className="h-3 w-3 rounded-sm border"
-          style={{ backgroundColor: REACTION_LIMIT_COLOR, borderColor: REACTION_LIMIT_BORDER }}
-        />
-        Giới hạn
-      </span>
-    </div>
-  );
+  // CustomTooltip, ReactionLegend, REACTION_* colors imported from ./components/ChartTooltip
 
   const ReportHeader = () => (
     <div className="border-b-2 border-slate-800 pb-4 mb-6">
@@ -2507,38 +2366,7 @@ export default function GreenpanDesign_Final() {
         </div>
       </main>
 
-      <style>{`
-        @media print {
-          @page { size: A4; margin: 10mm; }
 
-          html, body { height: auto !important; overflow: visible !important; }
-          .app-root { height: auto !important; overflow: visible !important; }
-          main { height: auto !important; overflow: visible !important; padding: 0 !important; }
-
-          body { background: white !important; }
-          header, nav, button { display: none !important; }
-
-          #tab-input, #tab-charts { display: none !important; }
-          #tab-report { display: block !important; position: static !important; }
-
-          .avoid-break { break-inside: avoid; page-break-inside: avoid; }
-          .report-sheet { padding: 6mm !important; }
-          .report-section { margin-bottom: 12px !important; }
-          .report-chart {
-            height: 170px !important;
-            padding: 6px 14px 6px 6px !important;
-            overflow: visible !important;
-          }
-          .report-chart .recharts-responsive-container {
-            width: 96% !important;
-            margin: 0 auto !important;
-          }
-          .report-legend { display: none !important; }
-          .recharts-text { font-size: 8px !important; }
-          .recharts-cartesian-axis-tick-value { font-size: 8px !important; }
-          .report-conclusion { margin-top: 6px !important; }
-        }
-      `}</style>
     </div>
   );
 }

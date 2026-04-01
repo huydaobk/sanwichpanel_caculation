@@ -2,8 +2,10 @@ name: Publish semantic release
 
 on:
   push:
-    branches:
-      - main
+    # Chỉ chạy khi push tag version (e.g. v1.2.3)
+    # CI workflow lo phần build/test trên mọi push branch
+    tags:
+      - 'v*.*.*'
   workflow_dispatch:
 
 permissions:

@@ -23,3 +23,15 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Dev/debug temp files
+*.bak
+missing.json
+bounds.json
+eslint_output.json
+lint-results.json
+lint_out.txt
+*.cjs.tmp
+docs/review/
+scripts/
+

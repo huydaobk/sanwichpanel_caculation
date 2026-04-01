@@ -1,4 +1,5 @@
 import React from 'react';
+import { ArrowHead, DimLine, LoadArrow } from './svg/SvgPrimitives';
 import { ResponsiveContainer, ComposedChart, Line, AreaChart, Area, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ReferenceArea } from 'recharts';
 import { Settings, Thermometer, TrendingUp, AlertCircle, Printer, BookOpen, Activity, Info, FileJson, Download, FileText, Upload, RefreshCw, Save, RefreshCcw, ChevronDown, ChevronRight, Check } from 'lucide-react';
 import { 
@@ -643,36 +644,7 @@ export const CeilingSchematic = ({ config, results }) => {
 
   const nArrows = 14;
 
-  // ✅ helper: arrow head polygon (không marker)
-  const ArrowHead = ({ x, y, dir = 'down', w = 6, h = 6, fill = '#64748b' }) => {
-    let pts = '';
-    if (dir === 'down') pts = `${x},${y} ${x - w / 2},${y - h} ${x + w / 2},${y - h}`;
-    if (dir === 'up') pts = `${x},${y} ${x - w / 2},${y + h} ${x + w / 2},${y + h}`;
-    if (dir === 'left') pts = `${x},${y} ${x + h},${y - w / 2} ${x + h},${y + w / 2}`;
-    if (dir === 'right') pts = `${x},${y} ${x - h},${y - w / 2} ${x - h},${y + w / 2}`;
-    return <polygon points={pts} fill={fill} />;
-  };
-
-  const LoadArrow = ({ x, y1, y2, up, color }) => {
-    const stroke = color;
-    return (
-      <g>
-        <line x1={x} y1={y1} x2={x} y2={y2} stroke={stroke} strokeWidth="1.4" />
-        <ArrowHead x={x} y={y2} dir={up ? 'up' : 'down'} w={6} h={6} fill={stroke} />
-      </g>
-    );
-  };
-
-  const DimLine = ({ x1, x2, y }) => {
-    const stroke = '#64748b';
-    return (
-      <g>
-        <line x1={x1} y1={y} x2={x2} y2={y} stroke={stroke} strokeWidth="1.4" />
-        <ArrowHead x={x1} y={y} dir="right" w={6} h={6} fill={stroke} />
-        <ArrowHead x={x2} y={y} dir="left" w={6} h={6} fill={stroke} />
-      </g>
-    );
-  };
+  // ArrowHead, LoadArrow, DimLine → imported from ./svg/SvgPrimitives
 
   const loadBands = [
     {
@@ -922,25 +894,8 @@ export const BeamDiagram = ({ spansM = [], windDirection = 'pressure', windPress
 
   const supports = supportLocs.map((xm, i) => ({ xm, i, x: xMap(xm) }));
 
-  const ArrowHead = ({ x, y, dir = 'down', w = 6, h = 6, fill = '#64748b' }) => {
-    let pts = '';
-    if (dir === 'down') pts = `${x},${y} ${x - w / 2},${y - h} ${x + w / 2},${y - h}`;
-    if (dir === 'up') pts = `${x},${y} ${x - w / 2},${y + h} ${x + w / 2},${y + h}`;
-    if (dir === 'left') pts = `${x},${y} ${x + h},${y - w / 2} ${x + h},${y + w / 2}`;
-    if (dir === 'right') pts = `${x},${y} ${x - h},${y - w / 2} ${x - h},${y + w / 2}`;
-    return <polygon points={pts} fill={fill} />;
-  };
-
-  const DimLine = ({ x1, x2, y }) => {
-    const stroke = '#64748b';
-    return (
-      <g>
-        <line x1={x1} y1={y} x2={x2} y2={y} stroke={stroke} strokeWidth="1.4" />
-        <ArrowHead x={x1} y={y} dir="right" w={6} h={6} fill={stroke} />
-        <ArrowHead x={x2} y={y} dir="left" w={6} h={6} fill={stroke} />
-      </g>
-    );
-  };
+  // ArrowHead, DimLine → imported from ./svg/SvgPrimitives
+  // LoadArrow below uses closure vars (isSuction, beamY, loadTopY, loadBottomY) → kept local
 
   const LoadArrow = ({ x }) => (
     <g>

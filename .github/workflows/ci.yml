@@ -12,7 +12,13 @@ permissions:
 
 jobs:
   build-and-regression:
-    runs-on: ubuntu-latest
+    # Matrix: test trên cả Ubuntu (nhanh/rẻ) lẫn Windows (platform target thực tế)
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+      fail-fast: false  # Chạy hết cả 2 dù 1 cái fail, để biết lỗi riêng từng OS
+
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout
@@ -27,14 +33,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Run ESLint
+        run: npx eslint .
+
       - name: Build web bundle
         run: npm run build
 
-      - name: Run regression suite
-        run: npm run test:regression
+      - name: Run regression suite with coverage
+        run: node --experimental-test-coverage tests/regression/run-all.mjs
 
       - name: Upload dist artifact
-        if: success()
+        if: success() && matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
           name: web-dist

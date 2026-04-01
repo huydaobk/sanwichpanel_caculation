@@ -31,7 +31,7 @@ export default defineConfig([
   {
     files: ['**/*.{cjs,mjs}'],
     languageOptions: {
-      ecmaVersion: 2020,
+      ecmaVersion: 'latest',
       sourceType: 'module',
       globals: {
         ...globals.node,
