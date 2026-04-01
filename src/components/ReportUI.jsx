@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React from 'react';
 import { ArrowHead, DimLine, LoadArrow } from './svg/SvgPrimitives';
 import { ResponsiveContainer, ComposedChart, Line, AreaChart, Area, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ReferenceArea } from 'recharts';
@@ -10,7 +11,6 @@ import {
   CAPACITY_CHECK_LABELS,
   CAPACITY_GOVERNING_CASE_KEYS,
   CAPACITY_GOVERNING_CASE_LABELS,
-  buildExportFileName
 } from '../calc';
 import * as Constants from '../utils/appLogic';
 
@@ -23,40 +23,13 @@ const {
   CAPACITY_REPORT_ROW_KEYS,
   CAPACITY_REPORT_ROW_LABELS,
   getModeLabel,
-  getCapacityLabel,
   COMPARE_VARIANT_LIMIT,
   COMPARE_VARIANT_LABELS,
   COMPARE_STATUS_LABELS,
   REPORT_BADGE_TONE_CLASSNAMES,
-  createDefaultConfig,
-  safeJsonClone,
-  cloneConfig,
-  sanitizeText,
-  normalizeIsoTimestamp,
-  isPlainObject,
-  getSafeLocalStorage,
-  formatArtifactScopeLabel,
-  summarizeVariantLabels,
-  buildImportSuccessMessage,
   STORAGE_KEYS,
   PRESET_LIMIT,
-  createSnapshotTemplate,
-  normalizeSnapshotVariantLabel,
-  normalizeSnapshotVariantId,
-  normalizeCompareVariantsForSnapshot,
-  normalizeImportedSnapshot,
-  downloadJsonFile,
-  buildSafeExportFileName,
-  buildDefaultPresetName,
-  buildPresetSummary,
-  normalizePresetLibrary,
-  loadPresetLibrary,
-  persistPresetLibrary,
-  createVariant,
-  normalizeVariantLabel,
   formatRatioPercent,
-  buildCompareDeltaText,
-  buildCompareMetricRows,
   TRANSPARENCY_RELIABILITY_LABELS,
   TRANSPARENCY_CLASSIFICATION_LABELS,
   getTransparencyLabel,

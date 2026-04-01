@@ -14,14 +14,8 @@
  * Trong môi trường test (Node.js), fallback về sync calculation.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useCalculation } from './useCalculation';
-import {
-  buildCompareExecutiveSummary,
-  DEFAULT_REDISTRIBUTION_MODE,
-  runPanelAnalysis,
-} from '../calc';
-import { buildCompareMetricRows, buildCompareDeltaText } from '../utils/appLogic';
 
 // Vite hỗ trợ import Worker với `?worker` query
 // Dùng lazy import để không break SSR / Node test env

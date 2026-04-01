@@ -40,7 +40,7 @@ function init(initialStateObj) {
       }
     } catch (e) {
       console.warn('Failed to hydrate preset library state', e);
-      try { storage.removeItem(STORAGE_KEYS.presetLibrary); } catch (e2) {}
+      try { storage.removeItem(STORAGE_KEYS.presetLibrary); } catch { /* ignore */ }
     }
   }
   return state;
