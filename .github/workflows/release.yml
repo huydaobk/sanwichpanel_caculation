@@ -2,10 +2,8 @@ name: Publish semantic release
 
 on:
   push:
-    # Chỉ chạy khi push tag version (e.g. v1.2.3)
-    # CI workflow lo phần build/test trên mọi push branch
-    tags:
-      - 'v*.*.*'
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -40,5 +38,5 @@ jobs:
 
       - name: Publish release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}      
         run: npm run release
