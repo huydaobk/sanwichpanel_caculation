@@ -9,21 +9,21 @@ import {
 import externalValidationFixture from '../../tests/fixtures/external-validation-cases.json' with { type: 'json' };
 
 const VALIDATION_CLASS_LABELS = {
-  'external-captured': 'External benchmark captured',
-  'internal-captured': 'Internal benchmark captured',
-  scaffold: 'Validation scaffold only',
+  'external-captured': 'Đã kiểm chứng bằng benchmark ngoài (External)',
+  'internal-captured': 'Đã kiểm chứng nội bộ (Internal)',
+  scaffold: 'Chỉ có khung kiểm chứng (Scaffold)',
 };
 
 const VALIDATION_STATUS_LABELS = {
-  captured: 'Captured',
-  partial: 'Partial',
+  captured: 'Đã đối chiếu',
+  partial: 'Đối chiếu một phần',
   scaffold: 'Scaffold',
 };
 
 const TRANSPARENCY_LEVEL_LABELS = {
-  high: 'High transparency',
-  medium: 'Medium transparency',
-  low: 'Limited transparency',
+  high: 'Minh bạch cao',
+  medium: 'Minh bạch trung bình',
+  low: 'Minh bạch hạn chế',
 };
 
 const DEFAULT_COMPARE_SUMMARY = {
@@ -101,8 +101,8 @@ const buildProfessionalBadges = ({ results, config }) => {
   return {
     status: {
       key: results?.status === 'pass' ? 'pass' : 'fail',
-      label: results?.status === 'pass' ? 'PASS' : 'FAIL',
-      detail: `${((overallRatio || 0) * 100).toFixed(0)}% utilization`,
+      label: results?.status === 'pass' ? 'ĐẠT' : 'KHÔNG ĐẠT',
+      detail: `${((overallRatio || 0) * 100).toFixed(0)}% mức độ tận dụng`,
     },
     validation: {
       ...buildValidationSummary(),
@@ -110,39 +110,39 @@ const buildProfessionalBadges = ({ results, config }) => {
     benchmarkClass: {
       key: buildValidationSummary().headlineClass,
       label: buildValidationSummary().headlineLabel,
-      detail: `${buildValidationSummary().externalCapturedCount} external / ${buildValidationSummary().internalCapturedCount} internal captured cases`,
+      detail: `${buildValidationSummary().externalCapturedCount} benchmark ngoài / ${buildValidationSummary().internalCapturedCount} nội bộ đã đối chiếu`,
     },
     transparency: {
       key: transparencyLevel,
       label: TRANSPARENCY_LEVEL_LABELS[transparencyLevel] || transparencyLevel,
       detail: results?.wrinklingDeclaredMissing
-        ? 'Declared wrinkling input missing → fallback active'
-        : `${exactCount} exact · ${approximationCount} approx · ${inputDependentCount} input-dependent`,
+        ? 'Thiếu giá trị wrinkling khai báo → đang dùng fallback'
+        : `${exactCount} chính xác · ${approximationCount} xấp xỉ · ${inputDependentCount} phụ thuộc đầu vào`,
     },
     panel: {
       key: config?.panelType || 'unknown',
-      label: config?.panelType === 'ceiling' ? 'Ceiling panel' : config?.panelType === 'external' ? 'External wall panel' : 'Internal wall panel',
-      detail: `${(config?.spans || []).length} spans · ${Number(config?.coreThickness || 0)} mm core`,
+      label: config?.panelType === 'ceiling' ? 'Tấm trần' : config?.panelType === 'external' ? 'Tấm vách ngoài' : 'Tấm vách trong',
+      detail: `${(config?.spans || []).length} nhịp · lõi ${Number(config?.coreThickness || 0)} mm`,
     },
   };
 };
 
 const buildAssumptions = ({ results, config }) => {
   const assumptions = [
-    `Solver uses continuous-beam FEM (Timoshenko) with current repository sign conventions and reporting envelope logic.`,
-    `Section resistance/check reporting follows current input semantics for wrinkling, shear core strength, support width, and uplift fastener resistance.`,
-    `Wind is reported in ${config?.windDirection === 'suction' ? 'suction' : 'pressure'} mode at ${Number(config?.windPressure || 0).toFixed(2)} kPa; thermal differential uses ΔT = ${Math.abs(Number(results?.dT_deg || 0)).toFixed(1)} °C.`,
+    `Bộ giải sử dụng phần tử hữu hạn dầm liên tục (Timoshenko) theo quy ước dấu hiện hành của repository và logic bao lực cắt/moment.`,
+    `Kiểm tra tiết diện và báo cáo sức kháng tuân theo ngữ nghĩa đầu vào hiện tại cho ứng suất nén mặt (wrinkling), sức kháng cắt lõi, chiều rộng gối và sức kháng nhổ của liên kết vít.`,
+    `Tải gió được tính theo chế độ ${config?.windDirection === 'suction' ? 'hút (suction)' : 'đẩy (pressure)'} với cường độ ${Number(config?.windPressure || 0).toFixed(2)} kPa; chênh lệch nhiệt độ sử dụng ΔT = ${Math.abs(Number(results?.dT_deg || 0)).toFixed(1)} °C.`,
     results?.distributedLoadMode === 'per-span'
-      ? 'Distributed load model is per-span: each span keeps its own qG/qQ set before combinations are assembled.'
-      : 'Distributed load model is uniform: all spans share the same qG/qQ set as the legacy flow.',
+      ? 'Mô hình tải phân bố theo từng nhịp: mỗi nhịp giữ bộ qG/qQ riêng trước khi tổ hợp tải được lắp ráp.'
+      : 'Mô hình tải phân bố đồng đều: tất cả các nhịp dùng chung một bộ qG/qQ theo luồng mặc định.',
   ];
 
   if (results?.creepMode && results.creepMode !== 'none') {
-    assumptions.push(`Creep is active in SLS with mode ${results.creepMode} (φ = ${Number(results?.phiShear || 0).toFixed(2)}${Number(results?.phiBending || 0) > 0 ? `, φb = ${Number(results?.phiBending || 0).toFixed(2)}` : ''}).`);
+    assumptions.push(`Từ biến (creep) đang kích hoạt ở trạng thái giới hạn sử dụng (SLS) theo chế độ ${results.creepMode} (φ = ${Number(results?.phiShear || 0).toFixed(2)}${Number(results?.phiBending || 0) > 0 ? `, φb = ${Number(results?.phiBending || 0).toFixed(2)}` : ''}).`);
   }
 
   if (config?.panelType !== 'ceiling') {
-    assumptions.push(`Uplift check is ${results?.upliftEnabled ? 'active' : 'inactive'} based on current wall mode and screwStrength input path.`);
+    assumptions.push(`Kiểm tra chống nhổ (uplift) đang ${results?.upliftEnabled ? 'kích hoạt' : 'tắt'} dựa trên chế độ tấm vách hiện tại và đường dẫn đầu vào screwStrength.`);
   }
 
   return assumptions;
@@ -150,24 +150,24 @@ const buildAssumptions = ({ results, config }) => {
 
 const buildLimitations = ({ results, config }) => {
   const limitations = [
-    'Captured validation coverage improves confidence in the current solver/reporting path, but does not by itself make the app a substitute for project-specific code approval or vendor-certified design sheets.',
-    'Transparency classes reflect provenance, not legal authority: user-declared or approximation-based inputs still require engineering judgment and source review before formal issue.',
+    'Mức độ kiểm chứng đối chiếu hiện có giúp nâng cao độ tin cậy của bộ giải và quy trình báo cáo, nhưng không thay thế việc phê duyệt tiêu chuẩn theo dự án cụ thể hoặc bảng tính thiết kế được nhà cung cấp chứng nhận.',
+    'Phân loại minh bạch (transparency class) phản ánh nguồn gốc dữ liệu, không phải căn cứ pháp lý: các đầu vào do người dùng tự khai báo hoặc dựa trên xấp xỉ kỹ thuật vẫn cần kỹ sư phán xét và xem xét nguồn trước khi phát hành chính thức.',
   ];
 
   if (results?.technicalTransparency?.wrinkling?.declaredInput && !results.technicalTransparency.wrinkling.declaredInput.isSourceDocumented) {
-    limitations.push('Wrinkling declared path is still user-declared unless a source-linked vendor/test/worksheet reference is attached to the actual numeric value used.');
+    limitations.push('Đường dẫn khai báo wrinkling vẫn ở mức "người dùng tự khai báo" cho đến khi có tham chiếu nhà cung cấp/thử nghiệm/bảng tính được gắn với giá trị số thực tế đang sử dụng.');
   }
 
   if (results?.upliftEnabled && !results?.technicalTransparency?.uplift?.declaredInput?.isSourceDocumented) {
-    limitations.push('Uplift resistance remains dependent on declared fastener capacity input; current report exposes provenance but does not upgrade that value into a source-backed fastening certification.');
+    limitations.push('Sức kháng chống nhổ (uplift) vẫn phụ thuộc vào giá trị cường độ vít do người dùng khai báo; báo cáo hiện tại chỉ công khai nguồn gốc dữ liệu nhưng không tự động nâng cấp giá trị đó lên mức chứng nhận liên kết từ nguồn.');
   }
 
   if (config?.enableSpanDistributedLoads === true && config?.panelType === 'ceiling') {
-    limitations.push('Per-span distributed load workflow keeps the legacy global wind treatment; wind is not yet discretized independently by span in this report version.');
+    limitations.push('Quy trình tải phân bố theo từng nhịp vẫn giữ cách xử lý tải gió toàn cục theo phiên bản cũ; gió chưa được rời rạc hóa độc lập theo nhịp trong phiên bản báo cáo này.');
   }
 
   if (results?.wrinklingDeclaredMissing) {
-    limitations.push(`Declared wrinkling input was missing, so the report is currently relying on fallback mode: ${results?.wrinklingFallbackMode || 'yield-only'}.`);
+    limitations.push(`Giá trị wrinkling khai báo bị thiếu, nên báo cáo hiện đang sử dụng chế độ fallback: ${results?.wrinklingFallbackMode || 'yield-only'}.`);
   }
 
   return limitations;
@@ -177,31 +177,31 @@ const buildCheckHighlights = ({ results, config }) => {
   const rows = [
     {
       key: 'overall',
-      label: 'Overall governing case',
+      label: 'Trường hợp chi phối tổng thể',
       value: results?.governingCases?.overall?.label || '—',
       ratio: Number(results?.governingCases?.overall?.ratio || 0),
     },
     {
       key: 'moment',
-      label: 'Moment / stress',
+      label: 'Mô-men / Ứng suất tại gối',
       value: results?.governingCases?.moment?.label || '—',
       ratio: Math.max(Number(results?.ratios?.bending || 0), Number(results?.ratios?.support || 0)),
     },
     {
       key: 'shear',
-      label: 'Core shear',
+      label: 'Cắt lõi (Core Shear)',
       value: `${(Number(results?.maxShear || 0) / 1000).toFixed(2)} / ${(Number(results?.V_Rd || 0) / 1000).toFixed(2)} kN`,
       ratio: Number(results?.ratios?.shear || 0),
     },
     {
       key: 'crushing',
-      label: 'Support crushing',
+      label: 'Ép dập gối tựa (Crushing)',
       value: `${(Number(results?.maxReaction || 0) / 1000).toFixed(2)} / ${(Number(results?.F_Rd_Worst || 0) / 1000).toFixed(2)} kN`,
       ratio: Number(results?.ratios?.crushing || 0),
     },
     {
       key: 'deflection',
-      label: 'Deflection SLS',
+      label: 'Độ võng SLS (Deflection)',
       value: `${Number(results?.maxDeflection || 0).toFixed(1)} / ${Number(results?.w_limit || 0).toFixed(1)} mm`,
       ratio: Number(results?.ratios?.deflection || 0),
     },
@@ -210,10 +210,10 @@ const buildCheckHighlights = ({ results, config }) => {
   if (config?.panelType !== 'ceiling') {
     rows.push({
       key: 'uplift',
-      label: 'Uplift',
+      label: 'Chống nhổ (Uplift)',
       value: results?.upliftEnabled
         ? `${(Number(results?.maxUplift || 0) / 1000).toFixed(2)} / ${(Number(results?.T_Rd_Worst || 0) / 1000).toFixed(2)} kN`
-        : 'N/A',
+        : 'Không áp dụng',
       ratio: results?.upliftEnabled ? Number(results?.ratios?.uplift || 0) : null,
     });
   }
