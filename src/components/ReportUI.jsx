@@ -68,7 +68,7 @@ export const ExecutiveSummaryPanel = ({ results, compareSummary }) => {
     <div className="mb-6 report-section rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-50 to-white p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Executive technical snapshot</div>
+          <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Tổng quan kỹ thuật (Executive Snapshot)</div>
           <h3 className="mt-1 text-lg font-bold text-slate-900">Tóm tắt điều kiện kiểm tra & mức độ tin cậy</h3>
           <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-600">
             Khối này gom trạng thái pass/fail, benchmark class, transparency level và case chi phối để người đọc nhìn 30 giây là hiểu mức tin cậy của bản tính.
@@ -80,15 +80,15 @@ export const ExecutiveSummaryPanel = ({ results, compareSummary }) => {
       </div>
 
       <div className="mt-4 grid gap-3 md:grid-cols-4">
-        <ReportBadge label={badges?.status?.label || 'Status'} detail={badges?.status?.detail || '—'} tone={statusTone} />
-        <ReportBadge label={badges?.validation?.headlineLabel || 'Validation'} detail={badges?.validation?.capturedCount != null ? `${badges.validation.capturedCount}/${badges.validation.totalCases} cases captured` : '—'} tone={validationTone} />
-        <ReportBadge label={badges?.benchmarkClass?.label || 'Benchmark class'} detail={badges?.benchmarkClass?.detail || '—'} tone={validationTone} />
-        <ReportBadge label={badges?.transparency?.label || 'Transparency'} detail={badges?.transparency?.detail || '—'} tone={transparencyTone} />
+        <ReportBadge label={badges?.status?.label || 'Trạng thái (Status)'} detail={badges?.status?.detail || '—'} tone={statusTone} />
+        <ReportBadge label={badges?.validation?.headlineLabel || 'Kiểm chứng (Validation)'} detail={badges?.validation?.capturedCount != null ? `${badges.validation.capturedCount}/${badges.validation.totalCases} trường hợp` : '—'} tone={validationTone} />
+        <ReportBadge label={badges?.benchmarkClass?.label || 'Lớp chuẩn (Benchmark)'} detail={badges?.benchmarkClass?.detail || '—'} tone={validationTone} />
+        <ReportBadge label={badges?.transparency?.label || 'Độ minh bạch (Transparency)'} detail={badges?.transparency?.detail || '—'} tone={transparencyTone} />
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-[1.2fr_1fr]">
         <div className="rounded-xl border border-slate-200 bg-white p-3">
-          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Check highlights</div>
+          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Điểm nhấn kiểm tra (Highlights)</div>
           <div className="mt-3 space-y-2">
             {(results?.reportPresentation?.checkHighlights || []).map((item) => {
               const toneClass = item.tone === 'fail'
@@ -116,7 +116,7 @@ export const ExecutiveSummaryPanel = ({ results, compareSummary }) => {
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-3">
-          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Validation coverage</div>
+          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Độ bao phủ kiểm chứng (Validation coverage)</div>
           <div className="mt-3 space-y-2 text-xs text-slate-600">
             {(badges?.validation?.keyCases || []).length > 0 ? (
               (badges.validation.keyCases || []).map((item) => (
@@ -127,7 +127,7 @@ export const ExecutiveSummaryPanel = ({ results, compareSummary }) => {
               ))
             ) : (
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
-                Chưa có captured benchmark case surfaced cho report snapshot hiện tại.
+                Chưa có trường hợp kiểm chứng đối chiếu (benchmark) cho bản trình bày báo cáo hiện tại.
               </div>
             )}
           </div>
@@ -136,7 +136,7 @@ export const ExecutiveSummaryPanel = ({ results, compareSummary }) => {
 
       {compareSummary?.available && (
         <div className="mt-4 rounded-xl border border-violet-200 bg-violet-50 p-3">
-          <div className="text-xs font-bold uppercase tracking-wide text-violet-700">Compare executive summary</div>
+          <div className="text-xs font-bold uppercase tracking-wide text-violet-700">Tóm tắt so sánh phương án</div>
           <div className="mt-2 grid gap-2 md:grid-cols-3 text-xs">
             <div className="rounded-lg border border-violet-200 bg-white px-3 py-2">
               <div className="text-violet-500">Phương án ưu tiên</div>
@@ -149,7 +149,7 @@ export const ExecutiveSummaryPanel = ({ results, compareSummary }) => {
               <div className="text-[11px] text-slate-500">{compareSummary.passCount}/{compareSummary.variantCount} phương án đạt</div>
             </div>
             <div className="rounded-lg border border-violet-200 bg-white px-3 py-2">
-              <div className="text-violet-500">Case chi phối PA tốt nhất</div>
+              <div className="text-violet-500">Trường hợp chi phối PA tốt nhất</div>
               <div className="mt-1 font-bold text-violet-900">{compareSummary.bestGoverningLabel || '—'}</div>
               <div className="text-[11px] text-slate-500">{compareSummary.rationale || 'Dùng để chốt lựa chọn nhanh trước khi đọc sâu từng bảng.'}</div>
             </div>
@@ -167,7 +167,7 @@ export const AssumptionsAndLimitationsPanel = ({ results }) => {
   return (
     <div className="mb-6 report-section grid gap-4 lg:grid-cols-2">
       <div className="rounded-xl border border-sky-200 bg-sky-50 p-4">
-        <div className="text-sm font-bold uppercase text-sky-900">Design assumptions</div>
+        <div className="text-sm font-bold uppercase text-sky-900">Giả thiết thiết kế (Assumptions)</div>
         <ul className="mt-3 space-y-2 text-xs leading-relaxed text-sky-900">
           {assumptions.map((item, idx) => (
             <li key={`assumption-${idx}`} className="flex gap-2">
@@ -179,7 +179,7 @@ export const AssumptionsAndLimitationsPanel = ({ results }) => {
       </div>
 
       <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-        <div className="text-sm font-bold uppercase text-amber-900">Limitations / caution</div>
+        <div className="text-sm font-bold uppercase text-amber-900">Giới hạn / Cảnh báo (Limitations)</div>
         <ul className="mt-3 space-y-2 text-xs leading-relaxed text-amber-900">
           {limitations.map((item, idx) => (
             <li key={`limitation-${idx}`} className="flex gap-2">
@@ -466,7 +466,7 @@ export const TransparencyPanel = ({ results }) => {
 
       <div className="grid md:grid-cols-2 gap-3 text-xs">
         <div className="bg-white rounded border border-slate-200 p-3 space-y-2">
-          <div className="font-semibold text-slate-700">Kiểm tra wrinkling / giới hạn nén</div>
+          <div className="font-semibold text-slate-700">Kiểm tra ứng suất nén mặt (Wrinkling)</div>
           <div className="flex flex-wrap gap-2">
             <TransparencyBadge tone={requestedTone}>{getTransparencyLabel(wrinklingMeta.requestedModeReliability)}</TransparencyBadge>
             <TransparencyBadge tone={effectiveTone}>Độ tin cậy: {getTransparencyLabel(wrinklingMeta.effectiveModeReliability || sigmaLimitMeta.reliability)}</TransparencyBadge>
@@ -492,11 +492,11 @@ export const TransparencyPanel = ({ results }) => {
               </div>
               {results?.sigma_w_source === 'declared' && (
                 <div className="text-[11px] text-slate-500 space-y-1">
-                  <div>Semantic khai báo: <b>{declaredInput?.basis || 'design-resistance'}</b> · Đơn vị hiển thị: <b>{declaredInput?.unit || 'MPa'}</b></div>
+                  <div>Cơ sở định nghĩa (Basis): <b>{declaredInput?.basis || 'design-resistance'}</b> · Đơn vị hiển thị: <b>{declaredInput?.unit || 'MPa'}</b></div>
                   <div>Nguồn: <b>{declaredInput?.sourceType || 'unknown'}</b>{declaredInput?.sourceRef ? ` · ref: ${declaredInput.sourceRef}` : ''}</div>
                   {declaredInput?.productContext && <div>Context sản phẩm: <b>{declaredInput.productContext}</b></div>}
                   {declaredInput?.sourceNote && <div>Note: {declaredInput.sourceNote}</div>}
-                  {!declaredInput?.isSourceDocumented && <div>Repo đã có schema semantic cho input này, nhưng nếu chưa kèm ref/note thì vẫn chỉ được coi là user-declared chứ chưa nâng độ authority.</div>}
+                  {!declaredInput?.isSourceDocumented && <div>Hệ thống đã có cấu trúc định nghĩa cho dữ liệu này, nhưng nếu chưa kèm tham chiếu/căn cứ thì phân loại vẫn ở mức "người dùng tự khai báo" (user-declared) và không đảm bảo mức độ tin cậy.</div>}
                 </div>
               )}
               {results?.sigma_w_source === 'approx' && (
@@ -514,18 +514,18 @@ export const TransparencyPanel = ({ results }) => {
           </div>
           <div className="space-y-1 text-slate-600">
             <div>screwStrength khai báo: <b className="text-slate-800">{Number(upliftDeclaredInput?.value || 0).toFixed(2)} {upliftDeclaredInput?.unit || 'kN'}</b></div>
-            <div>Semantic: <b>{upliftDeclaredInput?.basis || 'design-resistance-per-fastener'}</b> · Nguồn: <b>{upliftDeclaredInput?.sourceType || 'unknown'}</b></div>
-            <div>Diễn giải spacing: <b>{upliftDeclaredInput?.spacingMeaning || upliftMeta?.inputSchema?.spacingMeaning || 'spacing across panel width for simplified count estimate'}</b></div>
+            <div>Định nghĩa ngữ nghĩa: <b>{upliftDeclaredInput?.basis || 'design-resistance-per-fastener'}</b> · Nguồn cấp: <b>{upliftDeclaredInput?.sourceType || 'unknown'}</b></div>
+            <div>Hàm ý giãn cách khoảng vít: <b>{upliftDeclaredInput?.spacingMeaning || upliftMeta?.inputSchema?.spacingMeaning || 'khoảng cách theo chiều rộng tấm để ước tính số lượng vít tạm thời'}</b></div>
             {upliftDeclaredInput?.sourceRef && <div>Ref: <b>{upliftDeclaredInput.sourceRef}</b></div>}
             {upliftDeclaredInput?.fastenerContext && <div>Context vít/liên kết: <b>{upliftDeclaredInput.fastenerContext}</b></div>}
             {upliftDeclaredInput?.sourceNote && <div>Note: {upliftDeclaredInput.sourceNote}</div>}
             {!upliftDeclaredInput?.isSourceDocumented && (
-              <div className="text-[11px] text-slate-500">Hiện chưa có documented source gắn vào numeric path này; repo chỉ biết đây là per-fastener resistance input do người dùng/project artifact khai báo, không tự nâng thành source-backed capacity. Artifact hunt T3 chỉ xác nhận được acquisition path ở mức vendor installation guidance: fastening phải chốt theo fastener-manufacturer data / approved project schedule, chứ chưa tìm thấy dòng kN/vít đủ mạnh để attach trực tiếp.</div>
+              <div className="text-[11px] text-slate-500">Hiện chưa có tài liệu tham chiếu chuẩn xác cho hạng mục sức kháng nhổ mỗi vít. Giá trị cường độ vít do người dùng nhập thủ công sẽ chưa được hệ thống đảm bảo mức tính toán. Hướng dẫn thi công từ các nhà cung cấp khuyến cáo rằng sức chịu tải của liên kết phụ thuộc vào thông số nhà sản xuất và độ dày xà gồ tương ứng.</div>
             )}
           </div>
           <div className="text-[11px] text-slate-500 space-y-1">
-            <div>Quy tắc đếm vít hiện hành: <b>round(panelWidth / screwSpacing)</b>, tối thiểu 1 — đang được giữ ở trạng thái <b>provisional</b>.</div>
-            <div>γM,screw = <b>{upliftMeta?.factor?.value || 1.33}</b> hiện đã externalize minh bạch, nhưng repo vẫn <b>chưa có documented clause / vendor worksheet</b> để source-link giá trị này.</div>
+            <div>Quy tắc phân bổ vít tính toán hiện hành: <b>làm tròn(chiều rộng tấm / bước vít)</b>, tối thiểu 1 — đang được thiết lập ở trạng thái <b>tạm thời (provisional)</b>.</div>
+            <div>Hệ số an toàn vật liệu γM,screw = <b>{upliftMeta?.factor?.value || 1.33}</b> đã được thể hiện, tuy nhiên chưa có thông số kiểm định trực tiếp từ nhà cung cấp.</div>
           </div>
         </div>
 

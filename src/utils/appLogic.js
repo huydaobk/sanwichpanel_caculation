@@ -481,19 +481,19 @@ export const buildCompareMetricRows = (summary, config) => {
   const rows = [
     {
       key: 'status',
-      label: 'Pass / fail',
+      label: 'Trạng thái (Status)',
       value: summary?.status === 'pass' ? 'Đạt' : 'Không đạt',
       tone: summary?.status === 'pass' ? 'pass' : 'fail',
     },
     {
       key: 'governing',
-      label: 'Case chi phối',
+      label: 'Trường hợp chi phối',
       value: summary?.governingCases?.overall?.label || '—',
       tone: 'neutral',
     },
     {
       key: 'ratio',
-      label: 'Max ratio',
+      label: 'Tỷ lệ tối đa (Max ratio)',
       value: `${((summary?.governingCases?.overall?.ratio || 0) * 100).toFixed(0)}%`,
       tone: (summary?.governingCases?.overall?.ratio || 0) <= 1 ? 'pass' : 'fail',
     },
@@ -506,7 +506,7 @@ export const buildCompareMetricRows = (summary, config) => {
     },
     {
       key: 'crushing',
-      label: 'Crushing',
+      label: 'Ép dập (Crushing)',
       value: `${((summary?.ratios?.crushing || 0) * 100).toFixed(0)}%`,
       tone: (summary?.ratios?.crushing || 0) <= 1 ? 'pass' : 'fail',
     },
@@ -515,7 +515,7 @@ export const buildCompareMetricRows = (summary, config) => {
   if (config?.panelType !== 'ceiling') {
     rows.push({
       key: 'uplift',
-      label: 'Uplift',
+      label: 'Chống nhổ (Uplift)',
       value: summary?.upliftEnabled ? `${((summary?.ratios?.uplift || 0) * 100).toFixed(0)}%` : 'N/A',
       tone: !summary?.upliftEnabled ? 'muted' : (summary?.ratios?.uplift || 0) <= 1 ? 'pass' : 'fail',
     });
