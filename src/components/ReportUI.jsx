@@ -50,7 +50,7 @@ export const ReportBadge = ({ label, detail, tone = 'neutral' }) => (
   </div>
 );
 
-export const ExecutiveSummaryPanel = ({ results, compareSummary }) => {
+export const ExecutiveSummaryPanel = ({ results, compareSummary, isCustomerMode = false }) => {
   const badges = results?.reportPresentation?.badges || {};
   const statusTone = badges?.status?.key === 'pass' ? 'pass' : 'fail';
   const validationTone = badges?.validation?.headlineClass === 'external-captured'
@@ -64,31 +64,49 @@ export const ExecutiveSummaryPanel = ({ results, compareSummary }) => {
       ? 'info'
       : 'warning';
 
+  // Labels: always Vietnamese in customer mode
+  const statusLabel = isCustomerMode
+    ? (badges?.status?.key === 'pass' ? 'ĐẠT' : 'KHÔNG ĐẠT')
+    : (badges?.status?.label || (results?.status === 'pass' ? 'PASS' : 'FAIL'));
+
   return (
     <div className="mb-6 report-section rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-50 to-white p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Tổng quan kỹ thuật (Executive Snapshot)</div>
-          <h3 className="mt-1 text-lg font-bold text-slate-900">Tóm tắt điều kiện kiểm tra & mức độ tin cậy</h3>
-          <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-600">
-            Khối này gom trạng thái pass/fail, benchmark class, transparency level và case chi phối để người đọc nhìn 30 giây là hiểu mức tin cậy của bản tính.
-          </p>
+          <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">
+            {isCustomerMode ? 'Kết quả kiểm tra' : 'Tổng quan kỹ thuật'}
+          </div>
+          <h3 className="mt-1 text-lg font-bold text-slate-900">
+            {isCustomerMode ? 'Tóm tắt kết quả & khuyến nghị' : 'Tóm tắt điều kiện kiểm tra & kết quả'}
+          </h3>
+          {/* Ghi chú nội bộ — chỉ hiện khi không phải customer mode */}
+          {!isCustomerMode && (
+            <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-400 print:hidden">
+              Khối này gom trạng thái pass/fail, benchmark class, transparency level và case chi phối để người đọc nhìn 30 giây là hiểu mức tin cậy của bản tính.
+            </p>
+          )}
         </div>
         <div className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-bold ${statusTone === 'pass' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'}`}>
-          {badges?.status?.label || (results?.status === 'pass' ? 'PASS' : 'FAIL')}
+          {statusLabel}
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-4">
-        <ReportBadge label={badges?.status?.label || 'Trạng thái (Status)'} detail={badges?.status?.detail || '—'} tone={statusTone} />
-        <ReportBadge label={badges?.validation?.headlineLabel || 'Kiểm chứng (Validation)'} detail={badges?.validation?.capturedCount != null ? `${badges.validation.capturedCount}/${badges.validation.totalCases} trường hợp` : '—'} tone={validationTone} />
-        <ReportBadge label={badges?.benchmarkClass?.label || 'Lớp chuẩn (Benchmark)'} detail={badges?.benchmarkClass?.detail || '—'} tone={validationTone} />
-        <ReportBadge label={badges?.transparency?.label || 'Độ minh bạch (Transparency)'} detail={badges?.transparency?.detail || '—'} tone={transparencyTone} />
+      <div className={`mt-4 grid gap-3 ${isCustomerMode ? 'md:grid-cols-2 print:grid-cols-2' : 'md:grid-cols-4 print:grid-cols-2'}`}>
+        <ReportBadge label={isCustomerMode ? 'Kết quả tổng thể' : (badges?.status?.label || 'Kết quả kiểm tra')} detail={badges?.status?.detail || '—'} tone={statusTone} />
+        <ReportBadge label={'Phương pháp tính'} detail={badges?.transparency?.detail || '—'} tone={transparencyTone} />
+        {!isCustomerMode && (
+          <>
+            <ReportBadge label={'Tiêu chuẩn kiểm chứng'} detail={badges?.validation?.capturedCount != null ? `${badges.validation.capturedCount}/${badges.validation.totalCases} trường hợp đã đối chiếu` : '—'} tone={validationTone} className="print:hidden" />
+            <ReportBadge label={badges?.benchmarkClass?.label || 'Cấp chuẩn tham chiếu'} detail={badges?.benchmarkClass?.detail || '—'} tone={validationTone} className="print:hidden" />
+          </>
+        )}
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-[1.2fr_1fr]">
         <div className="rounded-xl border border-slate-200 bg-white p-3">
-          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Điểm nhấn kiểm tra (Highlights)</div>
+          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
+            {isCustomerMode ? 'Hạng mục kiểm tra' : 'Điểm nhấn kiểm tra'}
+          </div>
           <div className="mt-3 space-y-2">
             {(results?.reportPresentation?.checkHighlights || []).map((item) => {
               const toneClass = item.tone === 'fail'
@@ -115,23 +133,36 @@ export const ExecutiveSummaryPanel = ({ results, compareSummary }) => {
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-white p-3">
-          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Độ bao phủ kiểm chứng (Validation coverage)</div>
-          <div className="mt-3 space-y-2 text-xs text-slate-600">
-            {(badges?.validation?.keyCases || []).length > 0 ? (
-              (badges.validation.keyCases || []).map((item) => (
-                <div key={item.id} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                  <div className="font-semibold text-slate-800">{item.id} — {item.title}</div>
-                  <div className="mt-1 text-[11px] text-slate-500">{item.benchmarkLabel}{item.referenceType ? ` · ${item.referenceType}` : ''}</div>
+        {/* Độ bao phủ kiểm chứng: ẩn hoàn toàn ở bản khách hàng */}
+        {!isCustomerMode && (
+          <div className="rounded-xl border border-slate-200 bg-white p-3 print:hidden">
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Độ bao phủ kiểm chứng</div>
+            <div className="mt-3 space-y-2 text-xs text-slate-600">
+              {(badges?.validation?.keyCases || []).length > 0 ? (
+                (badges.validation.keyCases || []).map((item) => (
+                  <div key={item.id} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <div className="font-semibold text-slate-800">{item.id} — {item.title}</div>
+                    <div className="mt-1 text-[11px] text-slate-500">{item.benchmarkLabel}{item.referenceType ? ` · ${item.referenceType}` : ''}</div>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
+                  Chưa có trường hợp kiểm chứng đối chiếu (benchmark) cho bản trình bày báo cáo hiện tại.
                 </div>
-              ))
-            ) : (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
-                Chưa có trường hợp kiểm chứng đối chiếu (benchmark) cho bản trình bày báo cáo hiện tại.
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
+        )}
+        {isCustomerMode && (
+          <div className="rounded-xl border border-blue-100 bg-blue-50 p-3">
+            <div className="text-xs font-bold uppercase tracking-wide text-blue-700">Tiêu chuẩn áp dụng</div>
+            <div className="mt-3 space-y-1.5 text-xs text-slate-700">
+              <div className="flex gap-2"><span className="mt-1 h-1.5 w-1.5 rounded-full bg-blue-500 shrink-0" /><span>TCVN 2737:2023 — Tải trọng & tác động</span></div>
+              <div className="flex gap-2"><span className="mt-1 h-1.5 w-1.5 rounded-full bg-blue-500 shrink-0" /><span>EN 14509:2013 — Tấm sandwich panel hai mặt thép</span></div>
+              <div className="flex gap-2"><span className="mt-1 h-1.5 w-1.5 rounded-full bg-blue-500 shrink-0" /><span>Kiểm tra: ứng suất uốn, lực cắt, ép dập gối, độ võng</span></div>
+            </div>
+          </div>
+        )}
       </div>
 
       {compareSummary?.available && (
@@ -167,7 +198,7 @@ export const AssumptionsAndLimitationsPanel = ({ results }) => {
   return (
     <div className="mb-6 report-section grid gap-4 lg:grid-cols-2">
       <div className="rounded-xl border border-sky-200 bg-sky-50 p-4">
-        <div className="text-sm font-bold uppercase text-sky-900">Giả thiết thiết kế (Assumptions)</div>
+        <div className="text-sm font-bold uppercase text-sky-900">Giả thiết thiết kế</div>
         <ul className="mt-3 space-y-2 text-xs leading-relaxed text-sky-900">
           {assumptions.map((item, idx) => (
             <li key={`assumption-${idx}`} className="flex gap-2">
@@ -179,7 +210,7 @@ export const AssumptionsAndLimitationsPanel = ({ results }) => {
       </div>
 
       <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-        <div className="text-sm font-bold uppercase text-amber-900">Giới hạn / Cảnh báo (Limitations)</div>
+        <div className="text-sm font-bold uppercase text-amber-900">Giới hạn &amp; Lưu ý kỹ thuật</div>
         <ul className="mt-3 space-y-2 text-xs leading-relaxed text-amber-900">
           {limitations.map((item, idx) => (
             <li key={`limitation-${idx}`} className="flex gap-2">

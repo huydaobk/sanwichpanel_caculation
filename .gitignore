@@ -35,3 +35,8 @@ lint_out.txt
 docs/review/
 scripts/
 
+
+# Session / temp files
+.brain/
+tmp_pdf_*.jpg
+tmp_pdf_*.png

@@ -90,14 +90,14 @@ export default function GreenpanDesign_Final() {
     setConfig, setCompareVariants, setCompareModeEnabled, setCompareActiveVariantId,
     setSnapshotWorkflowMessage, setPresetLibraryWarning, setPresetLibrary,
     setPresetDraftName, setPresetDraftNote, setActiveTab, setPrintMode,
-    setUpdateStatus, setAppVersion
+    setUpdateStatus, setAppVersion, setOutputMode
   } = useAppState();
 
   const {
     config, compareVariants, compareModeEnabled, compareActiveVariantId,
     snapshotWorkflowMessage, presetLibraryWarning, presetLibrary,
     presetDraftName, presetDraftNote, activeTab, printMode,
-    updateStatus, appVersion
+    updateStatus, appVersion, outputMode
   } = state;
   const fallbackAppVersion = typeof window !== 'undefined'
     ? resolveRuntimeAppVersion(window?.electronAPI?.appVersion, window?.appVersion, APP_VERSION)
@@ -368,6 +368,8 @@ export default function GreenpanDesign_Final() {
   };
 
   const setCoreThickness = (val) => setConfig(prev => ({ ...prev, coreThickness: val }));
+
+  const isCustomerMode = outputMode === 'customer';
 
   const handlePrint = () => {
     setActiveTab('report');
@@ -1592,10 +1594,47 @@ export default function GreenpanDesign_Final() {
 
         {/* REPORT TAB */}
         <div id="tab-report" className={activeTab === 'report' ? 'block' : 'hidden'}>
+
+          {/* ── Output Mode Switcher ── */}
+          <div className="mb-4 flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm print:hidden">
+            <div>
+              <div className="text-sm font-bold text-slate-800">Chế độ xuất PDF</div>
+              <div className="text-xs text-slate-500 mt-0.5">
+                {isCustomerMode
+                  ? 'Bản khách hàng — ẩn ghi chú kỹ thuật nội bộ, hiển thị khuyến nghị rõ ràng'
+                  : 'Bản kỹ sư — đầy đủ chi tiết kỹ thuật, ghi chú provenance & validation'}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setOutputMode('engineer')}
+                className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${
+                  !isCustomerMode
+                    ? 'bg-slate-800 text-white'
+                    : 'border border-slate-300 text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                🔧 Bản kỹ sư
+              </button>
+              <button
+                type="button"
+                onClick={() => setOutputMode('customer')}
+                className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${
+                  isCustomerMode
+                    ? 'bg-blue-600 text-white'
+                    : 'border border-blue-300 text-blue-700 hover:bg-blue-50'
+                }`}
+              >
+                👤 Bản khách hàng
+              </button>
+            </div>
+          </div>
+
           <div className="w-full mx-auto bg-white p-8 shadow-lg print:shadow-none print:w-full print:max-w-none report-sheet">
             <ReportHeader />
-            <ExecutiveSummaryPanel results={results} compareSummary={results.compareSummary} />
-            <AssumptionsAndLimitationsPanel results={results} />
+            <ExecutiveSummaryPanel results={results} compareSummary={results.compareSummary} isCustomerMode={isCustomerMode} />
+            {!isCustomerMode && <AssumptionsAndLimitationsPanel results={results} />}
 
             <div className="mb-6 report-section">
               <h3 className="text-sm font-bold border-b border-gray-400 mb-2 uppercase flex items-center gap-2">
@@ -1646,7 +1685,7 @@ export default function GreenpanDesign_Final() {
               </div>
             </div>
 
-            <div className="mb-6 report-section">
+            <div className={`mb-6 report-section${isCustomerMode ? ' hidden print:hidden' : ''}`}>
               <h3 className="text-sm font-bold border-b border-gray-400 mb-2 uppercase flex items-center gap-2">
                 <BookOpen size={14} /> 2. Cơ sở & Phương pháp tính toán
               </h3>
@@ -1851,19 +1890,22 @@ export default function GreenpanDesign_Final() {
                     <p className="text-amber-700"><strong>Cảnh báo dữ liệu đầu vào:</strong> đã chọn chế độ khai báo trực tiếp nhưng thiếu ứng suất wrinkling hợp lệ; hệ thống đang fallback tạm sang <b>{getModeLabel(results.wrinklingFallbackMode, WRINKLING_MODE_LABELS)}</b>.</p>
                   )}
                   <p><strong>Ứng suất wrinkling xấp xỉ:</strong> σ<sub>w,approx</sub> = 0.5√(E<sub>f</sub>·E<sub>c</sub>·G<sub>c</sub>) = 0.5×√(210000×{results.compressiveModulus}×{config.coreShearModulus}) = <b>{results.sigma_w_approx.toFixed(1)} MPa</b></p>
-                  <p className="text-slate-500"><strong>Ghi chú provenance approx:</strong> hệ số <b>0.5</b> và bộ biến <b>E<sub>f</sub>, E<sub>c</sub>, G<sub>c</sub></b> hiện đã được externalize là <b>xấp xỉ kỹ thuật nội bộ</b>; repo <b>chưa có citation trực tiếp</b> để nâng thành công thức source-backed.</p>
+                  {/* Ghi chú provenance nội bộ — ẩn khi in */}
+                  <p className="text-slate-500 print:hidden"><strong>Ghi chú provenance approx:</strong> hệ số <b>0.5</b> và bộ biến <b>E<sub>f</sub>, E<sub>c</sub>, G<sub>c</sub></b> hiện đã được externalize là <b>xấp xỉ kỹ thuật nội bộ</b>; repo <b>chưa có citation trực tiếp</b> để nâng thành công thức source-backed.</p>
                   <p><strong>Ứng suất wrinkling khai báo:</strong> σ<sub>w,declared</sub> = <b>{results.sigma_w_declared.toFixed(1)} {results?.wrinklingMeta?.declaredInput?.unit || 'MPa'}</b></p>
-                  <p><strong>Semantic giá trị khai báo:</strong> {results?.wrinklingMeta?.declaredInput?.basis || 'design-resistance'} / {results?.wrinklingMeta?.declaredInput?.sourceType || 'unknown'} {results?.wrinklingMeta?.declaredInput?.sourceRef ? `(ref: ${results.wrinklingMeta.declaredInput.sourceRef})` : ''}</p>
+                  {/* Semantic basis — ẩn khi in */}
+                  <p className="print:hidden"><strong>Cơ sở giá trị khai báo:</strong> {results?.wrinklingMeta?.declaredInput?.basis || 'design-resistance'} / {results?.wrinklingMeta?.declaredInput?.sourceType || 'unknown'} {results?.wrinklingMeta?.declaredInput?.sourceRef ? `(ref: ${results.wrinklingMeta.declaredInput.sourceRef})` : ''}</p>
                   {results?.wrinklingMeta?.declaredInput?.productContext && (
                     <p><strong>Context sản phẩm:</strong> {results.wrinklingMeta.declaredInput.productContext}</p>
                   )}
                   {results?.wrinklingMeta?.declaredInput?.sourceNote && (
                     <p><strong>Ghi chú nguồn:</strong> {results.wrinklingMeta.declaredInput.sourceNote}</p>
                   )}
-                  <p className="text-slate-500"><strong>Ghi chú provenance declared:</strong> khi chọn <b>Khai báo trực tiếp</b>, repo giữ con số MPa ở trạng thái <b>user-declared</b> trừ khi có đúng table/test/worksheet chứa giá trị đó. Repo hiện đã có thêm một vendor technical guide cấp product-family nêu rõ failure mode <b>“wrinkling of the face layer in the span and at an intermediate support”</b>, nên basis/source framing đỡ mơ hồ hơn; nhưng đợt hunt artifact hiện tại vẫn <b>chưa tìm được</b> vendor MPa table, test report, archived worksheet, hay product-manual numeric line đủ mạnh để nâng con số MPa declared này thành source-backed.</p>
+                  {/* Ghi chú provenance nội bộ — ẩn khi in */}
+                  <p className="text-slate-500 print:hidden"><strong>Ghi chú provenance declared:</strong> khi chọn <b>Khai báo trực tiếp</b>, repo giữ con số MPa ở trạng thái <b>user-declared</b> trừ khi có đúng table/test/worksheet chứa giá trị đó. Repo hiện đã có thêm một vendor technical guide cấp product-family nêu rõ failure mode <b>“wrinkling of the face layer in the span and at an intermediate support”</b>, nên basis/source framing đỡ mơ hồ hơn; nhưng đợt hunt artifact hiện tại vẫn <b>chưa tìm được</b> vendor MPa table, test report, archived worksheet, hay product-manual numeric line đủ mạnh để nâng con số MPa declared này thành source-backed.</p>
                   <p><strong>Ứng suất wrinkling dùng trong kiểm tra:</strong> σ<sub>w</sub> = <b>{results.sigma_w.toFixed(1)} MPa</b></p>
                   <p><strong>Ứng suất thiết kế wrinkling:</strong> σ<sub>w,d</sub> = σ<sub>w</sub>/γ<sub>M,w</sub> = {results.sigma_w.toFixed(1)}/{results?.wrinklingMeta?.factorProvenance?.value || 1.2} = <b>{results.sigma_w_design.toFixed(1)} MPa</b></p>
-                  <p className="text-slate-500"><strong>Ghi chú provenance γ<sub>M,w</sub>:</strong> repo hiện áp dụng γ<sub>M,w</sub> = <b>{results?.wrinklingMeta?.factorProvenance?.value || 1.2}</b> nhất quán, nhưng chưa source-link được giá trị này tới clause/vendor/worksheet chấp nhận.</p>
+                  <p className="text-slate-500 print:hidden"><strong>Ghi chú provenance γ<sub>M,w</sub>:</strong> repo hiện áp dụng γ<sub>M,w</sub> = <b>{results?.wrinklingMeta?.factorProvenance?.value || 1.2}</b> nhất quán, nhưng chưa source-link được giá trị này tới clause/vendor/worksheet chấp nhận.</p>
                   <p><strong>Thiết kế chảy:</strong> σ<sub>y,d</sub> = f<sub>y</sub>/γ<sub>M,y</sub> = {config.steelYield}/1.1 = <b>{results.sigma_y_design.toFixed(1)} MPa</b></p>
                   <p><strong>Giới hạn:</strong> {results?.effectiveWrinklingMode === 'yield-only'
                     ? <>σ<sub>limit</sub> = σ<sub>y,d</sub> = <b>{results.sigma_limit.toFixed(1)} MPa</b></>
@@ -1888,7 +1930,7 @@ export default function GreenpanDesign_Final() {
                 </div>
 
                 <h4 className="font-bold text-blue-800 mt-3">2.7 Kiểm tra lực nhổ / liên kết chống nhổ (ULS)</h4>
-                <div className="p-2 bg-gray-50 rounded border border-gray-200 mt-1 text-[10px] font-mono space-y-1">
+                <div className="p-2 bg-gray-50 rounded border border-gray-200 mt-1 text-[10px] font-mono space-y-1 hidden print:hidden">
                   <p><strong>Phạm vi kiểm tra uplift:</strong> {results.upliftEnabled ? 'Đang bật vì panel không phải ceiling và có screwStrength > 0.' : 'Không áp dụng cho case hiện tại.'}</p>
                   <p><strong>screwStrength khai báo:</strong> <b>{Number(results?.technicalTransparency?.uplift?.declaredInput?.value || 0).toFixed(2)} {results?.technicalTransparency?.uplift?.declaredInput?.unit || 'kN'}</b> / mỗi vít</p>
                   <p><strong>Semantic giá trị khai báo:</strong> {results?.technicalTransparency?.uplift?.declaredInput?.basis || 'design-resistance-per-fastener'} / {results?.technicalTransparency?.uplift?.declaredInput?.sourceType || 'unknown'} {results?.technicalTransparency?.uplift?.declaredInput?.sourceRef ? `(ref: ${results.technicalTransparency.uplift.declaredInput.sourceRef})` : ''}</p>
@@ -2380,37 +2422,63 @@ export default function GreenpanDesign_Final() {
             )}
 
             <div className="bg-slate-50 p-4 rounded border border-slate-200 report-section report-conclusion">
-              <h3 className="text-sm font-bold uppercase mb-2 text-slate-700 flex items-center gap-2"><Info size={14} /> 5. Kết luận & khuyến nghị</h3>
+              <h3 className="text-sm font-bold uppercase mb-2 text-slate-700 flex items-center gap-2"><Info size={14} /> {isCustomerMode ? '2' : '5'}. Kết luận & khuyến nghị</h3>
               <div className="space-y-3">
                 <div className={`font-bold text-sm ${results.status === 'pass' ? 'text-green-700' : 'text-red-700'}`}>
                   {results.status === 'pass' ? 'KẾT CẤU ĐẢM BẢO KHẢ NĂNG CHỊU LỰC' : 'KẾT CẤU KHÔNG ĐẠT YÊU CẦU - CẦN ĐIỀU CHỈNH'}
                 </div>
-                <TransparencyPanel results={results} />
+                {/* TransparencyPanel: ẩn hoàn toàn ở bản khách hàng, ẩn khi in ở bản kỹ sư */}
+                {!isCustomerMode && (
+                  <div className="print:hidden">
+                    <TransparencyPanel results={results} />
+                  </div>
+                )}
                 <ul className="list-disc list-inside text-xs space-y-1 text-slate-600">
                   {results.advice.map((item, i) => (<li key={i}>{item}</li>))}
                 </ul>
+
+                {/* Box khuyến nghị & liên hệ — luôn hiện ở bản khách hàng, chỉ hiện khi in ở bản kỹ sư */}
+                <div className={`mt-4 border border-slate-300 rounded-lg p-4 bg-white ${isCustomerMode ? 'block' : 'hidden print:block'}`}>
+                  <div className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">📌 Greenpan Khuyến Nghị</div>
+                  <p className="text-xs text-slate-700 leading-relaxed">
+                    Vui lòng liên hệ kỹ sư phụ trách để được tư vấn điều chỉnh thông số và xác nhận phương án phù hợp với yêu cầu công trình.
+                  </p>
+                  <div className="mt-3 pt-3 border-t border-slate-200 text-[11px] text-slate-500 space-y-0.5">
+                    <div className="font-semibold text-slate-600">CÔNG TY TNHH GREENPAN</div>
+                    <div>🌐 www.greenpan.vn &nbsp;·&nbsp; 📧 info@greenpan.vn</div>
+                    <div className="text-[10px] italic text-slate-400 mt-1">Tài liệu tính toán được lập theo tiêu chuẩn EN 14509:2013 &amp; TCVN hiện hành &middot; Lưu hành nội bộ</div>
+                  </div>
+                </div>
               </div>
             </div>
 
             <div className="mt-8 flex flex-wrap justify-center gap-3 print:hidden">
-              <button
-                type="button"
-                onClick={handleExportPackage}
-                className="rounded-lg border border-emerald-300 bg-emerald-50 px-5 py-2 font-bold text-emerald-800 shadow hover:bg-emerald-100 flex items-center gap-2 transition-colors"
-              >
-                <FileJson size={18} />Xuất result package JSON (release-stamped)
-              </button>
+              {!isCustomerMode && (
+                <button
+                  type="button"
+                  onClick={handleExportPackage}
+                  className="rounded-lg border border-emerald-300 bg-emerald-50 px-5 py-2 font-bold text-emerald-800 shadow hover:bg-emerald-100 flex items-center gap-2 transition-colors"
+                >
+                  <FileJson size={18} />Xuất result package JSON (release-stamped)
+                </button>
+              )}
               <button
                 onClick={handlePrint}
-                className="bg-red-600 text-white px-6 py-2 rounded-lg font-bold shadow hover:bg-red-700 flex items-center gap-2 transition-colors"
+                className={`px-6 py-2 rounded-lg font-bold shadow flex items-center gap-2 transition-colors ${
+                  isCustomerMode
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                    : 'bg-red-600 hover:bg-red-700 text-white'
+                }`}
               >
-                <Printer size={20} />Xuất PDF / Lưu báo cáo
+                <Printer size={20} />
+                {isCustomerMode ? 'Xuất PDF Bản Khách Hàng' : 'Xuất PDF / Lưu báo cáo'}
               </button>
             </div>
 
             <div className="mt-8 text-[10px] text-center text-slate-400 italic space-y-1">
               <div>Báo cáo được tạo tự động bởi phần mềm {APP_DISPLAY_NAME}.</div>
-              <div>{buildReleaseStamp(resolvedAppVersion)} · channel: {resolvedReleaseChannel}</div>
+              {!isCustomerMode && <div>{buildReleaseStamp(resolvedAppVersion)} · channel: {resolvedReleaseChannel}</div>}
+              {isCustomerMode && <div className="text-slate-300">Tài liệu lưu hành · Liên hệ Greenpan để biết thêm chi tiết</div>}
             </div>
           </div>
         </div>
