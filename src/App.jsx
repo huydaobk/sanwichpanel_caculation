@@ -250,10 +250,11 @@ export default function GreenpanDesign_Final() {
   };
 
   React.useEffect(() => {
-    const ipcRenderer = window?.require?.('electron')?.ipcRenderer;
-    if (!ipcRenderer) return;
+    const api = window?.electronAPI;
+    if (!api) return; // Chạy trong browser dev — bỏ qua
 
-    const handler = (_event, payload) => {
+    // Đăng ký listener auto-update qua preload bridge (contextIsolation-safe)
+    api.onAutoUpdate((payload) => {
       setUpdateStatus({
         event: payload?.event,
         version: payload?.version,
@@ -262,13 +263,13 @@ export default function GreenpanDesign_Final() {
         appVersion: payload?.appVersion,
         ts: Date.now(),
       });
-    };
+    });
 
     const loadVersion = async () => {
       try {
         const [version, releaseMeta] = await Promise.all([
-          ipcRenderer.invoke('app-version'),
-          ipcRenderer.invoke('release-meta').catch(() => null),
+          api.getAppVersion().catch(() => null),
+          api.getReleaseMeta().catch(() => null),
         ]);
         const resolvedVersion = resolveRuntimeAppVersion(releaseMeta?.appVersion, version);
         if (resolvedVersion) setAppVersion(resolvedVersion);
@@ -277,9 +278,8 @@ export default function GreenpanDesign_Final() {
       }
     };
 
-    ipcRenderer.on('auto-update', handler);
     loadVersion();
-    return () => ipcRenderer.removeListener('auto-update', handler);
+    return () => api.removeAutoUpdateListener?.();
   }, []);
 
   const handleInputChange = (e) => {
@@ -573,19 +573,61 @@ export default function GreenpanDesign_Final() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {(updateStatus?.event || updateStatus?.appVersion || appVersion) && (
-            <div className="text-[11px] bg-slate-700/70 px-3 py-1 rounded-full whitespace-nowrap">
-              {(updateStatus?.appVersion || appVersion) && (
-                <span className="mr-2">v{updateStatus?.appVersion || appVersion}</span>
-              )}
-              {updateStatus?.event === 'checking' && 'Đang kiểm tra cập nhật...'}
-              {updateStatus?.event === 'available' && `Có bản mới ${updateStatus.version || ''}`}
-              {updateStatus?.event === 'not-available' && 'Không có cập nhật'}
-              {updateStatus?.event === 'download-progress' && `Đang tải ${Math.round(updateStatus.percent || 0)}%`}
-              {updateStatus?.event === 'downloaded' && `Đã tải xong ${updateStatus.version || ''}. Chuẩn bị cài...`}
-              {updateStatus?.event === 'error' && `Lỗi cập nhật: ${updateStatus.message || ''}`}
+          {/* ── Phiên bản hiện tại ── */}
+          {(updateStatus?.appVersion || appVersion) && (
+            <span className="text-[11px] text-slate-400">
+              v{updateStatus?.appVersion || appVersion}
+            </span>
+          )}
+
+          {/* ── Thông báo cập nhật ── */}
+          {updateStatus?.event === 'checking' && (
+            <div className="flex items-center gap-1.5 text-[11px] text-slate-300">
+              <span className="animate-spin inline-block w-3 h-3 border border-slate-400 border-t-transparent rounded-full" />
+              Đang kiểm tra cập nhật...
             </div>
           )}
+
+          {updateStatus?.event === 'available' && (
+            <div className="flex items-center gap-1.5 bg-blue-600/80 text-white text-[11px] px-3 py-1 rounded-full">
+              <span>🔄</span>
+              <span>Có bản mới {updateStatus.version} — Đang tải...</span>
+            </div>
+          )}
+
+          {updateStatus?.event === 'download-progress' && (
+            <div className="flex items-center gap-2 text-[11px] text-slate-300">
+              <div className="w-24 h-1.5 bg-slate-600 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-blue-400 rounded-full transition-all duration-300"
+                  style={{ width: `${Math.round(updateStatus.percent || 0)}%` }}
+                />
+              </div>
+              <span>Đang tải {Math.round(updateStatus.percent || 0)}%</span>
+            </div>
+          )}
+
+          {updateStatus?.event === 'downloaded' && (
+            <button
+              onClick={() => window.electronAPI?.installUpdate?.()}
+              className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-white text-[11px] font-semibold px-3 py-1.5 rounded-full transition-colors cursor-pointer animate-pulse"
+              title="Nhấp để cài đặt và khởi động lại"
+            >
+              <span>✅</span>
+              <span>Cài ngay v{updateStatus.version} & Khởi động lại</span>
+            </button>
+          )}
+
+          {updateStatus?.event === 'not-available' && (
+            <span className="text-[11px] text-slate-400">✓ Mới nhất</span>
+          )}
+
+          {updateStatus?.event === 'error' && (
+            <span className="text-[11px] text-red-400" title={updateStatus.message}>
+              ⚠ Lỗi cập nhật
+            </span>
+          )}
+
           <div className="flex gap-2">
             <button className={`px-4 py-1 rounded text-sm ${activeTab === 'input' ? 'bg-blue-600' : 'bg-slate-700'}`} onClick={() => setActiveTab('input')}>Nhập liệu</button>
             <button className={`px-4 py-1 rounded text-sm ${activeTab === 'charts' ? 'bg-blue-600' : 'bg-slate-700'}`} onClick={() => setActiveTab('charts')}>Biểu đồ</button>
