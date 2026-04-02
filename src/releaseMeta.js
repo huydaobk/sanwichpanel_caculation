@@ -1,7 +1,7 @@
 const RELEASE_META = {
   appDisplayName: 'Greenpan Design',
   appPackageName: 'greenpan-app',
-  appVersion: '0.0.1',
+  appVersion: '0.9.2',
   releaseArtifactBaseName: 'Greenpan-Design-Setup',
   internalReleaseTrack: 'internal',
 };

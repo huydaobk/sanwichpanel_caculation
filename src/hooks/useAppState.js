@@ -23,6 +23,7 @@ const initialState = {
   printMode: false,
   updateStatus: null,
   appVersion: '',
+  outputMode: 'engineer', // 'engineer' | 'customer'
 };
 
 function init(initialStateObj) {
@@ -83,5 +84,6 @@ export function useAppState() {
     setPrintMode: createSetter('printMode'),
     setUpdateStatus: createSetter('updateStatus'),
     setAppVersion: createSetter('appVersion'),
+    setOutputMode: createSetter('outputMode'),
   };
 }

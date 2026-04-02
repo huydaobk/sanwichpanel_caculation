@@ -1,122 +1,122 @@
 {
-  "name": "greenpan-app",
-  "private": true,
-  "version": "0.0.1",
-  "type": "module",
-  "main": "main.cjs",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview",
-    "test:regression": "node tests/regression/run-all.mjs",
-    "test:coverage": "node --experimental-test-coverage tests/regression/run-all.mjs",
-    "ci:check": "npm run build && npm run test:regression",
-    "ci:check:full": "npm run lint && npm run build && npm run test:coverage",
-    "dist": "npm run build && electron-builder",
-    "release": "semantic-release"
-  },
-  "dependencies": {
-    "@fontsource/inter": "^5.2.8",
-    "@fontsource/jetbrains-mono": "^5.2.8",
-    "electron-updater": "^6.1.8",
-    "lucide-react": "^0.471.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "recharts": "^2.15.0"
-  },
-  "devDependencies": {
-    "@eslint/js": "^9.17.0",
-    "@semantic-release/commit-analyzer": "^11.1.0",
-    "@semantic-release/exec": "^6.0.3",
-    "@semantic-release/github": "^10.0.7",
-    "@semantic-release/release-notes-generator": "^12.1.0",
-    "@tailwindcss/vite": "^4.2.2",
-    "@types/react": "^18.3.18",
-    "@types/react-dom": "^18.3.5",
-    "@vitejs/plugin-react": "^4.3.4",
-    "conventional-changelog-angular": "^8.1.0",
-    "electron": "^33.2.1",
-    "electron-builder": "^25.1.8",
-    "eslint": "^9.17.0",
-    "eslint-plugin-react": "^7.37.2",
-    "eslint-plugin-react-hooks": "^5.0.0",
-    "eslint-plugin-react-refresh": "^0.4.16",
-    "globals": "^15.14.0",
-    "semantic-release": "^23.0.5",
-    "tailwindcss": "^4.2.2",
-    "vite": "^6.0.5"
-  },
-  "build": {
-    "appId": "com.greenpan.design",
-    "productName": "Greenpan Design",
-    "artifactName": "Greenpan-Design-Setup-${version}-${channel}.${ext}",
-    "directories": {
-      "output": "release"
+    "name": "greenpan-app",
+    "private": true,
+    "version": "0.9.2",
+    "type": "module",
+    "main": "main.cjs",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "lint": "eslint .",
+        "preview": "vite preview",
+        "test:regression": "node tests/regression/run-all.mjs",
+        "test:coverage": "node --experimental-test-coverage tests/regression/run-all.mjs",
+        "ci:check": "npm run build && npm run test:regression",
+        "ci:check:full": "npm run lint && npm run build && npm run test:coverage",
+        "dist": "npm run build && electron-builder",
+        "release": "semantic-release"
     },
-    "files": [
-      "dist/**/*",
-      "main.cjs",
-      "preload.cjs",
-      "package.json"
-    ],
-    "win": {
-      "target": "nsis",
-      "icon": "public/logo_app.ico",
-      "signAndEditExecutable": false
+    "dependencies": {
+        "@fontsource/inter": "^5.2.8",
+        "@fontsource/jetbrains-mono": "^5.2.8",
+        "electron-updater": "^6.1.8",
+        "lucide-react": "^0.471.0",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+        "recharts": "^2.15.0"
     },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "installerIcon": "public/logo_app.ico",
-      "uninstallerIcon": "public/logo_app.ico"
+    "devDependencies": {
+        "@eslint/js": "^9.17.0",
+        "@semantic-release/commit-analyzer": "^11.1.0",
+        "@semantic-release/exec": "^6.0.3",
+        "@semantic-release/github": "^10.0.7",
+        "@semantic-release/release-notes-generator": "^12.1.0",
+        "@tailwindcss/vite": "^4.2.2",
+        "@types/react": "^18.3.18",
+        "@types/react-dom": "^18.3.5",
+        "@vitejs/plugin-react": "^4.3.4",
+        "conventional-changelog-angular": "^8.1.0",
+        "electron": "^33.2.1",
+        "electron-builder": "^25.1.8",
+        "eslint": "^9.17.0",
+        "eslint-plugin-react": "^7.37.2",
+        "eslint-plugin-react-hooks": "^5.0.0",
+        "eslint-plugin-react-refresh": "^0.4.16",
+        "globals": "^15.14.0",
+        "semantic-release": "^23.0.5",
+        "tailwindcss": "^4.2.2",
+        "vite": "^6.0.5"
     },
-    "extraMetadata": {
-      "productName": "Greenpan Design",
-      "releaseArtifactBaseName": "Greenpan-Design-Setup"
+    "build": {
+        "appId": "com.greenpan.design",
+        "productName": "Greenpan Design",
+        "artifactName": "Greenpan-Design-Setup-${version}-${channel}.${ext}",
+        "directories": {
+            "output": "release"
+        },
+        "files": [
+            "dist/**/*",
+            "main.cjs",
+            "preload.cjs",
+            "package.json"
+        ],
+        "win": {
+            "target": "nsis",
+            "icon": "public/logo_app.ico",
+            "signAndEditExecutable": false
+        },
+        "nsis": {
+            "oneClick": false,
+            "allowToChangeInstallationDirectory": true,
+            "installerIcon": "public/logo_app.ico",
+            "uninstallerIcon": "public/logo_app.ico"
+        },
+        "extraMetadata": {
+            "productName": "Greenpan Design",
+            "releaseArtifactBaseName": "Greenpan-Design-Setup"
+        },
+        "publish": [
+            {
+                "provider": "github",
+                "owner": "huydaobk",
+                "repo": "sanwichpanel_caculation",
+                "private": false
+            }
+        ]
     },
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "huydaobk",
-        "repo": "sanwichpanel_caculation",
-        "private": false
-      }
-    ]
-  },
-  "release": {
-    "branches": [
-      "main"
-    ],
-    "plugins": [
-      [
-        "@semantic-release/commit-analyzer",
-        {
-          "preset": "angular"
-        }
-      ],
-      [
-        "@semantic-release/release-notes-generator",
-        {
-          "preset": "angular"
-        }
-      ],
-      [
-        "@semantic-release/exec",
-        {
-          "prepareCmd": "npm version ${nextRelease.version} --no-git-tag-version && npm run dist -- --publish=never"
-        }
-      ],
-      [
-        "@semantic-release/github",
-        {
-          "assets": [
-            "release/*.exe",
-            "release/*.exe.blockmap",
-            "release/latest*.yml"
-          ]
-        }
-      ]
-    ]
-  }
+    "release": {
+        "branches": [
+            "main"
+        ],
+        "plugins": [
+            [
+                "@semantic-release/commit-analyzer",
+                {
+                    "preset": "angular"
+                }
+            ],
+            [
+                "@semantic-release/release-notes-generator",
+                {
+                    "preset": "angular"
+                }
+            ],
+            [
+                "@semantic-release/exec",
+                {
+                    "prepareCmd": "npm version ${nextRelease.version} --no-git-tag-version && npm run dist -- --publish=never"
+                }
+            ],
+            [
+                "@semantic-release/github",
+                {
+                    "assets": [
+                        "release/*.exe",
+                        "release/*.exe.blockmap",
+                        "release/latest*.yml"
+                    ]
+                }
+            ]
+        ]
+    }
 }
