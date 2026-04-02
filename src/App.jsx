@@ -372,12 +372,20 @@ export default function GreenpanDesign_Final() {
   const handlePrint = () => {
     setActiveTab('report');
     setPrintMode(true);
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        window.print();
-        setPrintMode(false);
+    // Chờ font và chart render xong trước khi in
+    // để PDF ra dạng text vector, không bị mờ
+    const doPrint = () => {
+      window.print();
+      setPrintMode(false);
+    };
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => {
+        // Thêm delay nhỏ cho Recharts render ở kích thước print
+        setTimeout(doPrint, 400);
       });
-    });
+    } else {
+      setTimeout(doPrint, 600);
+    }
   };
 
   const handleExportPackage = () => {
