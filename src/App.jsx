@@ -1930,22 +1930,24 @@ export default function GreenpanDesign_Final() {
                 </div>
 
                 <h4 className="font-bold text-blue-800 mt-3">2.7 Kiểm tra lực nhổ / liên kết chống nhổ (ULS)</h4>
-                <div className="p-2 bg-gray-50 rounded border border-gray-200 mt-1 text-[10px] font-mono space-y-1 hidden print:hidden">
-                  <p><strong>Phạm vi kiểm tra uplift:</strong> {results.upliftEnabled ? 'Đang bật vì panel không phải ceiling và có screwStrength > 0.' : 'Không áp dụng cho case hiện tại.'}</p>
-                  <p><strong>screwStrength khai báo:</strong> <b>{Number(results?.technicalTransparency?.uplift?.declaredInput?.value || 0).toFixed(2)} {results?.technicalTransparency?.uplift?.declaredInput?.unit || 'kN'}</b> / mỗi vít</p>
-                  <p><strong>Semantic giá trị khai báo:</strong> {results?.technicalTransparency?.uplift?.declaredInput?.basis || 'design-resistance-per-fastener'} / {results?.technicalTransparency?.uplift?.declaredInput?.sourceType || 'unknown'} {results?.technicalTransparency?.uplift?.declaredInput?.sourceRef ? `(ref: ${results.technicalTransparency.uplift.declaredInput.sourceRef})` : ''}</p>
+                {/* 2.7 Công thức tính — luôn hiện */}
+                <div className="p-2 bg-gray-50 rounded border border-gray-200 mt-1 text-[10px] font-mono space-y-1">
+                  <p><strong>Phạm vi kiểm tra uplift:</strong> {results.upliftEnabled ? 'Áp dụng (panel vách, có khai báo screwStrength).' : 'Không áp dụng cho case hiện tại.'}</p>
+                  <p><strong>Sức kháng mỗi liên kết:</strong> F<sub>Rd,1</sub> = <b>{Number(results?.technicalTransparency?.uplift?.declaredInput?.value || 0).toFixed(2)} {results?.technicalTransparency?.uplift?.declaredInput?.unit || 'kN'}</b> / vít</p>
+                  <p><strong>Số lượng liên kết:</strong> n = round(B / s<sub>screw</sub>) = <b>{results.screwCount}</b> vít / nhịp</p>
+                  <p><strong>Hệ số vật liệu:</strong> γ<sub>M,screw</sub> = <b>{results?.technicalTransparency?.uplift?.factor?.value || 1.33}</b></p>
+                  <p><strong>Sức kháng thiết kế uplift:</strong> T<sub>Rd</sub> = F<sub>Rd,1</sub> × n / γ<sub>M,screw</sub> = {Number(results?.technicalTransparency?.uplift?.declaredInput?.value || 0).toFixed(2)} × {results.screwCount} / {results?.technicalTransparency?.uplift?.factor?.value || 1.33} = <b>{(results.T_Rd_Worst / 1000).toFixed(2)} kN</b></p>
+                </div>
+
+                {/* 2.7 Debug notes — chỉ hiện trên màn hình, ẩn khi in */}
+                <div className="p-2 bg-gray-50 rounded border border-gray-200 mt-1 text-[10px] font-mono space-y-1 print:hidden">
+                  <p className="text-slate-400 font-bold uppercase tracking-wide text-[9px]">Ghi chú nội bộ (ẩn khi in)</p>
+                  <p><strong>Quy tắc đếm vít:</strong> {results?.technicalTransparency?.uplift?.declaredInput?.spacingMeaning || 'spacing across panelWidth for simplified count estimate'} → screwCount = <b>{results.screwCount}</b></p>
+                  <p><strong>Semantic nguồn:</strong> {results?.technicalTransparency?.uplift?.declaredInput?.basis || 'design-resistance-per-fastener'} / {results?.technicalTransparency?.uplift?.declaredInput?.sourceType || 'unknown'} {results?.technicalTransparency?.uplift?.declaredInput?.sourceRef ? `(ref: ${results.technicalTransparency.uplift.declaredInput.sourceRef})` : ''}</p>
                   {results?.technicalTransparency?.uplift?.declaredInput?.fastenerContext && (
                     <p><strong>Context vít/liên kết:</strong> {results.technicalTransparency.uplift.declaredInput.fastenerContext}</p>
                   )}
-                  {results?.technicalTransparency?.uplift?.declaredInput?.sourceNote && (
-                    <p><strong>Ghi chú nguồn:</strong> {results.technicalTransparency.uplift.declaredInput.sourceNote}</p>
-                  )}
-                  {!results?.technicalTransparency?.uplift?.declaredInput?.isSourceDocumented && results.upliftEnabled && (
-                    <p className="text-slate-500"><strong>Ghi chú provenance screwStrength:</strong> hiện <b>chưa có documented source</b> cho con số kN đang dùng, nên repo chỉ coi đây là <b>user-declared per-fastener resistance</b>, chưa nâng thành source-backed capacity. T3 artifact hunt chỉ tìm được vendor installation guidance xác nhận fastening phải được dimension case-by-case theo <b>fastener-manufacturer instructions / research results</b>; đây là acquisition-path context, không phải numeric authority cho chính giá trị kN.</p>
-                  )}
-                  <p><strong>Quy tắc đếm vít hiện hành:</strong> {results?.technicalTransparency?.uplift?.declaredInput?.spacingMeaning || results?.technicalTransparency?.uplift?.inputSchema?.spacingMeaning || 'spacing across panelWidth for simplified count estimate'} → screwCount = <b>{results.screwCount}</b></p>
-                  <p><strong>Sức kháng thiết kế uplift:</strong> T<sub>Rd</sub> = screwStrength × screwCount / γ<sub>M,screw</sub> = {Number(results?.technicalTransparency?.uplift?.declaredInput?.value || 0).toFixed(2)} × {results.screwCount} / {results?.technicalTransparency?.uplift?.factor?.value || 1.33} = <b>{(results.T_Rd_Worst / 1000).toFixed(2)} kN</b></p>
-                  <p className="text-slate-500"><strong>Ghi chú provenance γ<sub>M,screw</sub> & count rule:</strong> repo externalize rõ <b>γ<sub>M,screw</sub></b> và rule <b>round(panelWidth / screwSpacing)</b>, nhưng cả hai hiện vẫn là <b>implementation-visible source gap</b>; chưa có clause/vendor worksheet được attach để nâng authority.</p>
+                  <p className="text-slate-500"><strong>Provenance γ<sub>M,screw</sub>:</strong> implementation-visible source gap; chưa có clause được attach.</p>
                 </div>
 
                 <h4 className="font-bold text-blue-800 mt-3">2.8 Trường hợp chi phối</h4>
