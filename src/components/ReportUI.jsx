@@ -43,8 +43,8 @@ export const TransparencyBadge = ({ children, tone = 'slate', className = '' }) 
   </span>
 );
 
-export const ReportBadge = ({ label, detail, tone = 'neutral' }) => (
-  <div className={`rounded-xl border px-3 py-2 ${REPORT_BADGE_TONE_CLASSNAMES[tone] || REPORT_BADGE_TONE_CLASSNAMES.neutral}`}>
+export const ReportBadge = ({ label, detail, tone = 'neutral', className = '' }) => (
+  <div className={`rounded-xl border px-3 py-2 ${REPORT_BADGE_TONE_CLASSNAMES[tone] || REPORT_BADGE_TONE_CLASSNAMES.neutral} ${className}`.trim()}>
     <div className="text-[10px] font-bold uppercase tracking-wide">{label}</div>
     {detail && <div className="mt-1 text-[11px] font-medium normal-case tracking-normal">{detail}</div>}
   </div>
@@ -196,7 +196,7 @@ export const AssumptionsAndLimitationsPanel = ({ results }) => {
   const limitations = results?.reportPresentation?.limitations || [];
 
   return (
-    <div className="mb-6 report-section grid gap-4 lg:grid-cols-2">
+    <div className="mb-6 report-section grid gap-4 lg:grid-cols-2 print:hidden">
       <div className="rounded-xl border border-sky-200 bg-sky-50 p-4">
         <div className="text-sm font-bold uppercase text-sky-900">Giả thiết thiết kế</div>
         <ul className="mt-3 space-y-2 text-xs leading-relaxed text-sky-900">
